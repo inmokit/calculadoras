@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Calculadora Gastos de Venta - Girona</title>
+    <title>Calculadora de Gastos de Venta - Girona</title>
     <style>
         * {
             margin: 0;
@@ -16,13 +16,17 @@
             background: white;
             min-height: 100vh;
             padding: 0;
+            margin: 0;
         }
 
         .container {
             max-width: 600px;
             margin: 0 auto;
             background: white;
+            border-radius: 0;
+            box-shadow: none;
             overflow: hidden;
+            min-height: 100vh;
         }
 
         .header {
@@ -37,13 +41,7 @@
             font-size: 28px;
             font-weight: 600;
             margin: 0 0 20px 0;
-            line-height: 1.3;
-        }
-
-        .header img {
-            height: 70px;
-            width: auto;
-            margin-top: 15px;
+            line-height: 1.2;
         }
 
         .content {
@@ -62,12 +60,17 @@
             margin-bottom: 12px;
         }
 
-        .slider-value {
-            font-size: 24px;
-            font-weight: bold;
-            color: #667eea;
-            margin-bottom: 10px;
-            text-align: center;
+        .campo-explicacion {
+            font-size: 13px;
+            color: #666;
+            margin-top: 5px;
+            margin-bottom: 12px;
+            line-height: 1.4;
+            font-style: italic;
+        }
+
+        .slider-container {
+            position: relative;
         }
 
         input[type="range"] {
@@ -100,311 +103,761 @@
             box-shadow: 0 2px 6px rgba(0,0,0,0.2);
         }
 
-        .campo-explicacion {
-            font-size: 14px;
-            color: #666;
-            font-style: italic;
-            margin-top: 8px;
-            line-height: 1.4;
+        .slider-value {
+            text-align: center;
+            font-size: 24px;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 10px;
         }
 
-        button {
-            width: 100%;
+        .radio-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .radio-option {
+            flex: 1;
+            padding: 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 16px;
+            font-weight: 600;
+            background: #f8f9fa;
+        }
+
+        .radio-option:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+
+        .radio-option.selected {
+            border-color: #667eea;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            font-weight: bold;
+        }
+
+        .subsection {
+            background: #f8f9ff;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .subsection.visible {
+            display: block;
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 10px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: white;
+        }
+
+        .checkbox-item:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+
+        .checkbox-item.selected {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            margin-right: 12px;
+            cursor: pointer;
+        }
+
+        .checkbox-item label {
+            flex: 1;
+            margin: 0;
+            font-size: 15px;
+            cursor: pointer;
+        }
+
+        .checkbox-item .price {
+            font-weight: 700;
+            color: #667eea;
+            font-size: 15px;
+        }
+
+        .btn-calcular {
+            width: 100%;
             padding: 18px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
             border: none;
             border-radius: 8px;
             font-size: 18px;
-            margin-top: 20px;
+            font-weight: 700;
             cursor: pointer;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 30px;
         }
 
-        button:hover {
+        .btn-calcular:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
         }
 
         .modal {
+            display: none;
             position: fixed;
             top: 0;
             left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: white;
-            z-index: 9999;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-start;
-            align-items: center;
-            padding: 40px 20px;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            padding: 20px;
             overflow-y: auto;
-            visibility: hidden;
-            opacity: 0;
-            transform: translateX(100%);
-            transition: transform 0.4s ease-out, opacity 0.4s ease-out, visibility 0s 0.4s;
         }
 
         .modal.modal-visible {
-            visibility: visible;
-            opacity: 1;
-            transform: translateX(0);
-            transition: transform 0.4s ease-out, opacity 0.4s ease-out, visibility 0s 0s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .modal-content {
-            width: 100%;
+            background: white;
+            border-radius: 20px;
+            padding: 0;
             max-width: 500px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 40px 30px;
-            border-radius: 12px;
-            color: white;
-            text-align: center;
-            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+            width: 100%;
+            position: relative;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-height: 90vh;
+            overflow-y: auto;
         }
 
-        .modal-content h2 {
-            font-size: 24px;
-            margin-bottom: 25px;
-            font-weight: 600;
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 30px;
+            border-radius: 20px 20px 0 0;
+            position: relative;
+        }
+
+        .close-x {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 40px;
+            color: rgba(255,255,255,0.6);
+            cursor: pointer;
+            line-height: 1;
+            transition: color 0.3s;
+        }
+
+        .close-x:hover {
+            color: white;
+        }
+
+        .modal-body {
+            padding: 30px;
         }
 
         .resultado-item {
-            background: rgba(255, 255, 255, 0.15);
+            background: rgba(255,255,255,0.15);
             padding: 15px;
             border-radius: 8px;
             margin-bottom: 12px;
-            font-size: 16px;
-            line-height: 1.6;
+        }
+
+        .resultado-item strong {
+            display: block;
+            font-size: 14px;
+            margin-bottom: 5px;
+            color: #666;
+        }
+
+        .resultado-item .valor {
+            font-size: 18px;
+            font-weight: 700;
+            color: #667eea;
         }
 
         .resultado-destacado {
-            background: rgba(255, 255, 255, 0.25);
+            background: rgba(102, 126, 234, 0.1);
             padding: 20px;
-            border-radius: 8px;
+            border-radius: 12px;
+            text-align: center;
             margin: 20px 0;
-            font-size: 22px;
-            font-weight: 600;
+            border: 2px solid #667eea;
         }
 
-        .aviso {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 15px;
-            border-radius: 8px;
-            margin: 20px 0;
-            font-size: 14px;
-            line-height: 1.5;
+        .resultado-destacado strong {
+            display: block;
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .resultado-destacado .valor-grande {
+            font-size: 32px;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .desglose-section {
+            margin-top: 25px;
+            padding-top: 25px;
+            border-top: 2px solid #e0e0e0;
+        }
+
+        .desglose-section h3 {
+            color: #667eea;
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+
+        .desglose-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .desglose-item:last-child {
+            border-bottom: none;
+        }
+
+        .desglose-item .concepto {
+            font-size: 15px;
+            color: #666;
+        }
+
+        .desglose-item .importe {
+            font-weight: 700;
+            color: #333;
+            font-size: 15px;
         }
 
         .agente-card {
             background: white;
             padding: 25px;
             border-radius: 12px;
-            margin-top: 30px;
-            text-align: center;
-            color: #333;
+            margin-top: 25px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
 
-        .agente-imagen {
+        .agente-foto {
             width: 100px;
             height: 100px;
-            object-fit: cover;
             border-radius: 50%;
             margin: 0 auto 15px;
             display: block;
             border: 3px solid #667eea;
+            object-fit: cover;
         }
 
-        .agente-card p {
+        .agente-texto {
+            text-align: center;
             font-size: 16px;
             color: #666;
             margin-bottom: 20px;
+            line-height: 1.6;
         }
 
         #whatsappBtn {
-            background-color: #25D366;
+            display: block;
+            width: 100%;
+            padding: 18px;
+            background: #25D366;
             color: white;
-            font-weight: bold;
-            padding: 18px 30px;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            cursor: pointer;
             text-align: center;
             text-decoration: none;
-            display: inline-block;
-            width: 100%;
-            max-width: 300px;
-            transition: background-color 0.3s ease;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 16px;
+            transition: all 0.3s;
         }
 
         #whatsappBtn:hover {
-            background-color: #20ba5a;
+            background: #20BA5A;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(37, 211, 102, 0.4);
         }
 
-        .close-x {
-            margin-top: 30px;
-            font-size: 40px;
-            color: rgba(255, 255, 255, 0.6);
-            cursor: pointer;
-            transition: color 0.2s ease;
+        .aviso-legal {
+            background: rgba(102, 126, 234, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #666;
+            text-align: center;
+            margin-top: 20px;
+            border-left: 4px solid #667eea;
         }
 
-        .close-x:hover {
-            color: white;
+        @media (max-width: 600px) {
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .content {
+                padding: 20px;
+            }
+
+            .slider-value {
+                font-size: 20px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>Calculadora<br>Gastos de Venta</h1>
-            <img src="https://raw.githubusercontent.com/botonescurso/calculadoras/main/ajuntament-girona.png" alt="Ajuntament de Girona" onerror="this.onerror=null; this.src='https://raw.githubusercontent.com/botonescurso/calculadoras/main/Fabian.jpg';">
+            <h1>Calculadora de<br>Gastos de Venta</h1>
+            <div style="display: flex; align-items: center; justify-content: center; margin-top: 15px;">
+                <img src="https://github.com/botonescurso/calculadoras/raw/main/ajuntament-girona.png" alt="Ajuntament de Girona" style="height: 70px; width: auto;" onerror="this.onerror=null; this.src='https://github.com/botonescurso/calculadoras/raw/main/Fabian.jpg';">
+            </div>
         </div>
 
         <div class="content">
+            <!-- PRECIO DE VENTA -->
             <div class="form-group">
-                <label>💰 Precio de venta (€)</label>
-                <div class="slider-value" id="precioVentaValue">300.000 €</div>
-                <input type="range" id="precioVenta" min="50000" max="2000000" step="10000" value="300000" oninput="updateValue('precioVenta', this.value)">
-                <p class="campo-explicacion">Precio total al que vendes la vivienda.</p>
+                <label>💰 Precio de venta</label>
+                <div class="slider-value" id="precioVentaDisplay">250.000 €</div>
+                <input type="range" id="precioVenta" min="50000" max="2000000" step="10000" value="250000">
+                <p class="campo-explicacion">📋 Es el precio al que vendes la vivienda. Incluye el importe total que recibirás del comprador.</p>
             </div>
 
-            <div class="form-group">
-                <label>📊 Valor catastral del suelo (€)</label>
-                <div class="slider-value" id="valorCatastralValue">50.000 €</div>
-                <input type="range" id="valorCatastral" min="10000" max="500000" step="5000" value="50000" oninput="updateValue('valorCatastral', this.value)">
-                <p class="campo-explicacion">Lo encuentras en el recibo del IBI. Es solo el valor del suelo, no de la construcción.</p>
-            </div>
-
+            <!-- AÑOS DE PROPIEDAD -->
             <div class="form-group">
                 <label>📅 Años de propiedad</label>
-                <div class="slider-value" id="aniosPropiedadValue">10 años</div>
-                <input type="range" id="aniosPropiedad" min="1" max="50" step="1" value="10" oninput="updateValue('aniosPropiedad', this.value, ' años')">
-                <p class="campo-explicacion">Años que has sido propietario de la vivienda.</p>
+                <div class="slider-value" id="aniosPropiedadDisplay">10 años</div>
+                <input type="range" id="aniosPropiedad" min="1" max="50" step="1" value="10">
+                <p class="campo-explicacion">📋 Años completos que has sido propietario de la vivienda. Necesario para calcular la plusvalía municipal.</p>
             </div>
 
+            <!-- VALOR CATASTRAL SUELO -->
             <div class="form-group">
-                <label>💼 Comisión inmobiliaria (%)</label>
-                <div class="slider-value" id="comisionValue">3 %</div>
-                <input type="range" id="comision" min="0" max="10" step="0.5" value="3" oninput="updateValue('comision', this.value, ' %')">
-                <p class="campo-explicacion">Porcentaje que cobra la inmobiliaria sobre el precio de venta.</p>
+                <label>🌍 Valor catastral del suelo</label>
+                <div class="slider-value" id="valorSueloDisplay">70.000 €</div>
+                <input type="range" id="valorSuelo" min="10000" max="500000" step="5000" value="70000">
+                <p class="campo-explicacion">📋 Lo encuentras en tu recibo del IBI, apartado "Valor Catastral del Suelo".</p>
             </div>
 
-            <button onclick="calcularGastos()">Calcular Gastos</button>
+            <!-- VALOR CATASTRAL TOTAL -->
+            <div class="form-group">
+                <label>🏢 Valor catastral total</label>
+                <div class="slider-value" id="valorTotalDisplay">150.000 €</div>
+                <input type="range" id="valorTotal" min="50000" max="1000000" step="5000" value="150000">
+                <p class="campo-explicacion">📋 En tu recibo del IBI, apartado "Valor Catastral" o "Base Imponible". Es la suma del valor del suelo + construcción.</p>
+            </div>
+
+            <!-- COMISIÓN INMOBILIARIA -->
+            <div class="form-group">
+                <label>🏪 Comisión inmobiliaria</label>
+                <div class="slider-value" id="comisionDisplay">5.0%</div>
+                <input type="range" id="comision" min="0" max="10" step="0.5" value="5">
+                <p class="campo-explicacion">📋 Porcentaje que cobra la inmobiliaria por gestionar la venta. Normalmente entre 3% y 6%.</p>
+            </div>
+
+            <!-- ¿TIENE HIPOTECA? -->
+            <div class="form-group">
+                <label>🏦 ¿Tiene hipoteca pendiente?</label>
+                <div class="radio-group">
+                    <div class="radio-option" id="hipotecaSi" onclick="selectHipoteca('si')">Sí</div>
+                    <div class="radio-option selected" id="hipotecaNo" onclick="selectHipoteca('no')">No</div>
+                </div>
+            </div>
+
+            <!-- SUBSECCIÓN HIPOTECA -->
+            <div class="subsection" id="subseccionHipoteca">
+                <div class="form-group">
+                    <label>💳 Capital pendiente de amortizar</label>
+                    <div class="slider-value" id="capitalPendienteDisplay">80.000 €</div>
+                    <input type="range" id="capitalPendiente" min="0" max="500000" step="5000" value="80000">
+                    <p class="campo-explicacion">📋 Cantidad que aún debes al banco. Lo puedes consultar en tu última liquidación hipotecaria o llamando al banco.</p>
+                </div>
+
+                <div class="form-group">
+                    <label>📊 Comisión cancelación anticipada</label>
+                    <div class="slider-value" id="comisionCancelacionDisplay">1.0%</div>
+                    <input type="range" id="comisionCancelacion" min="0" max="3" step="0.1" value="1">
+                    <p class="campo-explicacion">📋 Penalización que cobra el banco por cancelar antes de tiempo. Suele ser entre 0.5% y 2% del capital pendiente.</p>
+                </div>
+            </div>
+
+            <!-- CERTIFICADOS Y DOCUMENTOS -->
+            <div class="form-group">
+                <label>📜 Certificados y documentos obligatorios</label>
+                <p class="campo-explicacion">📋 Marca los certificados que necesitas obtener para la venta:</p>
+                <div class="checkbox-group">
+                    <div class="checkbox-item" onclick="toggleCheckbox('certEnergetico')">
+                        <input type="checkbox" id="certEnergetico" checked>
+                        <label for="certEnergetico">Certificado de Eficiencia Energética</label>
+                        <span class="price">200 €</span>
+                    </div>
+                    <div class="checkbox-item" onclick="toggleCheckbox('cedulaHabitabilidad')">
+                        <input type="checkbox" id="cedulaHabitabilidad" checked>
+                        <label for="cedulaHabitabilidad">Cédula de Habitabilidad (Cataluña)</label>
+                        <span class="price">150 €</span>
+                    </div>
+                    <div class="checkbox-item" onclick="toggleCheckbox('notaSimple')">
+                        <input type="checkbox" id="notaSimple" checked>
+                        <label for="notaSimple">Nota Simple Registral</label>
+                        <span class="price">10 €</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GASTORÍA -->
+            <div class="form-group">
+                <label>📋 Gestoría</label>
+                <div class="slider-value" id="gestoriaDisplay">300 €</div>
+                <input type="range" id="gestoria" min="0" max="1000" step="50" value="300">
+                <p class="campo-explicacion">📋 Coste de tramitación de documentos y gestiones. Puede variar según la complejidad de la venta.</p>
+            </div>
+
+            <!-- GASTOS COMUNIDAD PENDIENTES -->
+            <div class="form-group">
+                <label>🏘️ Gastos de comunidad pendientes</label>
+                <div class="slider-value" id="comunidadDisplay">0 €</div>
+                <input type="range" id="comunidad" min="0" max="5000" step="100" value="0">
+                <p class="campo-explicacion">📋 Cuotas de comunidad que aún no has pagado. El vendedor debe abonarlas antes de la venta.</p>
+            </div>
+
+            <!-- DERRAMAS EXTRAORDINARIAS -->
+            <div class="form-group">
+                <label>🔧 Derramas extraordinarias</label>
+                <div class="slider-value" id="derramasDisplay">0 €</div>
+                <input type="range" id="derramas" min="0" max="10000" step="500" value="0">
+                <p class="campo-explicacion">📋 Gastos extraordinarios aprobados por la comunidad (obras, reparaciones). Debes pagarlas antes de vender.</p>
+            </div>
+
+            <!-- IBI PENDIENTE -->
+            <div class="form-group">
+                <label>🏛️ IBI pendiente del año en curso</label>
+                <div class="slider-value" id="ibiDisplay">0 €</div>
+                <input type="range" id="ibi" min="0" max="3000" step="50" value="0">
+                <p class="campo-explicacion">📋 Parte proporcional del IBI del año que aún no has pagado. Se prorratea según los días del año que has sido propietario.</p>
+            </div>
+
+            <!-- REPARACIONES -->
+            <div class="form-group">
+                <label>🔨 Reparaciones necesarias antes de vender</label>
+                <div class="slider-value" id="reparacionesDisplay">0 €</div>
+                <input type="range" id="reparaciones" min="0" max="20000" step="500" value="0">
+                <p class="campo-explicacion">📋 Arreglos que debes hacer antes de la venta (pintura, fontanería, etc.). Es opcional pero puede mejorar el precio final.</p>
+            </div>
+
+            <button class="btn-calcular" onclick="calcularGastos()">💰 Calcular Gastos Totales</button>
         </div>
     </div>
 
+    <!-- MODAL RESULTADO -->
     <div class="modal" id="modalResultado">
         <div class="modal-content">
-            <h2>Resultado estimado</h2>
-            <div id="contenidoResultado"></div>
-            <div class="aviso">
-                ⚠️ Estos son datos estimados. Consulta con un profesional para confirmar tu situación.
+            <div class="modal-header">
+                <span class="close-x" onclick="cerrarModal()">×</span>
+                <h2 style="margin: 0; font-size: 24px;">📊 Gastos de Venta</h2>
+                <p style="margin-top: 10px; opacity: 0.9; font-size: 16px;">Desglose completo de todos los gastos</p>
+            </div>
+
+            <div class="modal-body" id="contenidoResultado"></div>
+
+            <div class="modal-body">
+                <div class="agente-card">
+                    <img src="https://github.com/botonescurso/calculadoras/raw/main/Fabian.jpg" alt="Fabián Caamaño" class="agente-foto">
+                    <p class="agente-texto">¿Necesitas ayuda con la venta de tu vivienda?<br><strong>Puedo gestionarte todos estos trámites.</strong></p>
+                    <a id="whatsappBtn" href="#" target="_blank">💬 Consultar por WhatsApp</a>
+                </div>
+
+                <div class="aviso-legal">
+                    ⚠️ <strong>Cálculo estimado.</strong> Los gastos reales pueden variar. Consulta con un profesional para un cálculo exacto.
+                </div>
             </div>
         </div>
-
-        <div class="agente-card">
-            <img src="https://raw.githubusercontent.com/botonescurso/calculadoras/main/Fabian.jpg" alt="Fabián Caamaño" class="agente-imagen">
-            <p>¿Quieres que lo revisemos contigo? Escríbenos por WhatsApp 👇</p>
-            <a id="whatsappBtn" href="#" target="_blank">Abrir WhatsApp ➚</a>
-        </div>
-
-        <span class="close-x" onclick="cerrarModal()">×</span>
     </div>
 
     <script>
-        function updateValue(id, value, suffix = ' €') {
-            const numValue = parseFloat(value);
-            if (suffix === ' €') {
-                document.getElementById(id + 'Value').textContent = numValue.toLocaleString('es-ES') + suffix;
+        let tieneHipoteca = false;
+
+        // Sliders
+        const sliders = {
+            precioVenta: { slider: document.getElementById('precioVenta'), display: document.getElementById('precioVentaDisplay'), suffix: ' €' },
+            aniosPropiedad: { slider: document.getElementById('aniosPropiedad'), display: document.getElementById('aniosPropiedadDisplay'), suffix: ' años' },
+            valorSuelo: { slider: document.getElementById('valorSuelo'), display: document.getElementById('valorSueloDisplay'), suffix: ' €' },
+            valorTotal: { slider: document.getElementById('valorTotal'), display: document.getElementById('valorTotalDisplay'), suffix: ' €' },
+            comision: { slider: document.getElementById('comision'), display: document.getElementById('comisionDisplay'), suffix: '%' },
+            capitalPendiente: { slider: document.getElementById('capitalPendiente'), display: document.getElementById('capitalPendienteDisplay'), suffix: ' €' },
+            comisionCancelacion: { slider: document.getElementById('comisionCancelacion'), display: document.getElementById('comisionCancelacionDisplay'), suffix: '%' },
+            gestoria: { slider: document.getElementById('gestoria'), display: document.getElementById('gestoriaDisplay'), suffix: ' €' },
+            comunidad: { slider: document.getElementById('comunidad'), display: document.getElementById('comunidadDisplay'), suffix: ' €' },
+            derramas: { slider: document.getElementById('derramas'), display: document.getElementById('derramasDisplay'), suffix: ' €' },
+            ibi: { slider: document.getElementById('ibi'), display: document.getElementById('ibiDisplay'), suffix: ' €' },
+            reparaciones: { slider: document.getElementById('reparaciones'), display: document.getElementById('reparacionesDisplay'), suffix: ' €' }
+        };
+
+        Object.keys(sliders).forEach(key => {
+            const { slider, display, suffix } = sliders[key];
+            slider.addEventListener('input', function() {
+                let value = parseFloat(this.value);
+                if (suffix === ' €') {
+                    display.textContent = value.toLocaleString('es-ES') + suffix;
+                } else if (suffix === '%') {
+                    display.textContent = value.toFixed(1) + suffix;
+                } else {
+                    display.textContent = value + suffix;
+                }
+            });
+        });
+
+        function selectHipoteca(opcion) {
+            const btnSi = document.getElementById('hipotecaSi');
+            const btnNo = document.getElementById('hipotecaNo');
+            const subseccion = document.getElementById('subseccionHipoteca');
+
+            if (opcion === 'si') {
+                btnSi.classList.add('selected');
+                btnNo.classList.remove('selected');
+                subseccion.classList.add('visible');
+                tieneHipoteca = true;
             } else {
-                document.getElementById(id + 'Value').textContent = numValue + suffix;
+                btnSi.classList.remove('selected');
+                btnNo.classList.add('selected');
+                subseccion.classList.remove('visible');
+                tieneHipoteca = false;
+            }
+        }
+
+        function toggleCheckbox(id) {
+            const checkbox = document.getElementById(id);
+            const item = checkbox.closest('.checkbox-item');
+            checkbox.checked = !checkbox.checked;
+            if (checkbox.checked) {
+                item.classList.add('selected');
+            } else {
+                item.classList.remove('selected');
             }
         }
 
         function calcularGastos() {
-            const precioVenta = parseFloat(document.getElementById("precioVenta").value) || 0;
-            const valorCatastral = parseFloat(document.getElementById("valorCatastral").value) || 0;
-            const aniosPropiedad = parseInt(document.getElementById("aniosPropiedad").value) || 1;
-            const comisionPct = parseFloat(document.getElementById("comision").value) || 0;
+            const precioVenta = parseFloat(sliders.precioVenta.slider.value);
+            const aniosPropiedad = parseInt(sliders.aniosPropiedad.slider.value);
+            const valorSuelo = parseFloat(sliders.valorSuelo.slider.value);
+            const valorTotal = parseFloat(sliders.valorTotal.slider.value);
+            const comisionPct = parseFloat(sliders.comision.slider.value);
+            const capitalPendiente = tieneHipoteca ? parseFloat(sliders.capitalPendiente.slider.value) : 0;
+            const comisionCancelacionPct = tieneHipoteca ? parseFloat(sliders.comisionCancelacion.slider.value) : 0;
+            const gestoria = parseFloat(sliders.gestoria.slider.value);
+            const comunidad = parseFloat(sliders.comunidad.slider.value);
+            const derramas = parseFloat(sliders.derramas.slider.value);
+            const ibi = parseFloat(sliders.ibi.slider.value);
+            const reparaciones = parseFloat(sliders.reparaciones.slider.value);
 
-            // 1. Comisión inmobiliaria
-            const comision = precioVenta * (comisionPct / 100);
+            // Certificados
+            const certEnergetico = document.getElementById('certEnergetico').checked ? 200 : 0;
+            const cedulaHabitabilidad = document.getElementById('cedulaHabitabilidad').checked ? 150 : 0;
+            const notaSimple = document.getElementById('notaSimple').checked ? 10 : 0;
 
-            // 2. Plusvalía municipal (estimación)
-            let coefPlusvalia = 0.03; // Coeficiente promedio por año
-            if (aniosPropiedad <= 5) coefPlusvalia = 0.03;
-            else if (aniosPropiedad <= 10) coefPlusvalia = 0.025;
-            else coefPlusvalia = 0.02;
-            
-            const baseImponiblePlusvalia = valorCatastral * coefPlusvalia * aniosPropiedad;
-            const plusvalia = baseImponiblePlusvalia * 0.30; // Tipo aprox Girona
+            // Validaciones
+            if (valorSuelo > valorTotal) {
+                alert('❌ El valor del suelo no puede ser mayor que el valor total catastral');
+                return;
+            }
 
-            // 3. Notaría (escritura cancelación si hay hipoteca)
-            const notaria = 300; // Estimación fija
+            // 1. PLUSVALÍA MUNICIPAL (usando coeficientes Girona)
+            const coeficientes = {
+                1: 0.15, 2: 0.14, 3: 0.14, 4: 0.16, 5: 0.18,
+                6: 0.19, 7: 0.20, 8: 0.19, 9: 0.15, 10: 0.12,
+                11: 0.10, 12: 0.09, 13: 0.09, 14: 0.09, 15: 0.09,
+                16: 0.10, 17: 0.13, 18: 0.17, 19: 0.23, 20: 0.40
+            };
+            const periodo = Math.min(aniosPropiedad, 20);
+            const coef = coeficientes[periodo] || 0.40;
+            const baseImponiblePlusvalia = valorSuelo * coef;
+            const tipoImpositivo = 0.29; // 29% Girona
+            const plusvalia = baseImponiblePlusvalia * tipoImpositivo;
 
-            // 4. Registro (cancelación de hipoteca si existe)
-            const registro = 200; // Estimación fija
+            // 2. COMISIÓN INMOBILIARIA
+            const comisionInmo = precioVenta * (comisionPct / 100);
 
-            // 5. Certificado energético
-            const certificadoEnergetico = 150;
+            // 3. HIPOTECA (si tiene)
+            let gastosHipoteca = 0;
+            let comisionBancaria = 0;
+            let notariaCancelacion = 0;
+            let registroCancelacion = 0;
 
-            // 6. Cédula de habitabilidad (Cataluña)
-            const cedulaHabitabilidad = 100;
+            if (tieneHipoteca && capitalPendiente > 0) {
+                comisionBancaria = capitalPendiente * (comisionCancelacionPct / 100);
+                notariaCancelacion = 150; // Estimado
+                registroCancelacion = 80; // Estimado
+                gastosHipoteca = comisionBancaria + notariaCancelacion + registroCancelacion;
+            }
 
-            // 7. Gestoría (opcional)
-            const gestoria = 400;
+            // 4. CERTIFICADOS
+            const totalCertificados = certEnergetico + cedulaHabitabilidad + notaSimple;
 
-            // Total gastos
-            const totalGastos = comision + plusvalia + notaria + registro + certificadoEnergetico + cedulaHabitabilidad + gestoria;
+            // 5. TOTAL
+            const totalGastos = plusvalia + comisionInmo + gastosHipoteca + totalCertificados + 
+                               gestoria + comunidad + derramas + ibi + reparaciones;
 
-            let resultadoHTML = `
-                <div class="resultado-item">
-                    <strong>Comisión inmobiliaria (${comisionPct}%)</strong><br>
-                    ${comision.toLocaleString('es-ES')} €
-                </div>
-                <div class="resultado-item">
-                    <strong>Plusvalía municipal (estimada)</strong><br>
-                    ${plusvalia.toLocaleString('es-ES')} €
-                </div>
-                <div class="resultado-item">
-                    <strong>Notaría (cancelación)</strong><br>
-                    ${notaria.toLocaleString('es-ES')} €
-                </div>
-                <div class="resultado-item">
-                    <strong>Registro (cancelación)</strong><br>
-                    ${registro.toLocaleString('es-ES')} €
-                </div>
-                <div class="resultado-item">
-                    <strong>Certificado energético</strong><br>
-                    ${certificadoEnergetico.toLocaleString('es-ES')} €
-                </div>
-                <div class="resultado-item">
-                    <strong>Cédula habitabilidad</strong><br>
-                    ${cedulaHabitabilidad.toLocaleString('es-ES')} €
-                </div>
-                <div class="resultado-item">
-                    <strong>Gestoría</strong><br>
-                    ${gestoria.toLocaleString('es-ES')} €
-                </div>
+            // RESULTADO
+            let resultado = `
                 <div class="resultado-destacado">
-                    Total gastos estimados:<br>
-                    ${totalGastos.toLocaleString('es-ES', {maximumFractionDigits: 0})} €
+                    <strong>💰 TOTAL GASTOS DE VENTA</strong>
+                    <div class="valor-grande">${totalGastos.toFixed(0).toLocaleString('es-ES')} €</div>
+                </div>
+
+                <div class="desglose-section">
+                    <h3>📋 Desglose Detallado</h3>
+                    
+                    <div class="desglose-item">
+                        <span class="concepto">🏛️ Plusvalía Municipal (${periodo} años)</span>
+                        <span class="importe">${plusvalia.toFixed(0).toLocaleString('es-ES')} €</span>
+                    </div>
+
+                    <div class="desglose-item">
+                        <span class="concepto">🏪 Comisión Inmobiliaria (${comisionPct}%)</span>
+                        <span class="importe">${comisionInmo.toFixed(0).toLocaleString('es-ES')} €</span>
+                    </div>
+            `;
+
+            if (tieneHipoteca && capitalPendiente > 0) {
+                resultado += `
+                    <div class="desglose-item">
+                        <span class="concepto">🏦 Comisión cancelación hipoteca (${comisionCancelacionPct}%)</span>
+                        <span class="importe">${comisionBancaria.toFixed(0).toLocaleString('es-ES')} €</span>
+                    </div>
+                    <div class="desglose-item">
+                        <span class="concepto">📜 Notaría cancelación hipoteca</span>
+                        <span class="importe">${notariaCancelacion.toFixed(0).toLocaleString('es-ES')} €</span>
+                    </div>
+                    <div class="desglose-item">
+                        <span class="concepto">📋 Registro cancelación hipoteca</span>
+                        <span class="importe">${registroCancelacion.toFixed(0).toLocaleString('es-ES')} €</span>
+                    </div>
+                `;
+            }
+
+            if (certEnergetico > 0) {
+                resultado += `
+                    <div class="desglose-item">
+                        <span class="concepto">⚡ Certificado Eficiencia Energética</span>
+                        <span class="importe">${certEnergetico} €</span>
+                    </div>
+                `;
+            }
+
+            if (cedulaHabitabilidad > 0) {
+                resultado += `
+                    <div class="desglose-item">
+                        <span class="concepto">🏠 Cédula de Habitabilidad</span>
+                        <span class="importe">${cedulaHabitabilidad} €</span>
+                    </div>
+                `;
+            }
+
+            if (notaSimple > 0) {
+                resultado += `
+                    <div class="desglose-item">
+                        <span class="concepto">📄 Nota Simple Registral</span>
+                        <span class="importe">${notaSimple} €</span>
+                    </div>
+                `;
+            }
+
+            if (gestoria > 0) {
+                resultado += `
+                    <div class="desglose-item">
+                        <span class="concepto">📋 Gestoría</span>
+                        <span class="importe">${gestoria.toFixed(0).toLocaleString('es-ES')} €</span>
+                    </div>
+                `;
+            }
+
+            if (comunidad > 0) {
+                resultado += `
+                    <div class="desglose-item">
+                        <span class="concepto">🏘️ Gastos comunidad pendientes</span>
+                        <span class="importe">${comunidad.toFixed(0).toLocaleString('es-ES')} €</span>
+                    </div>
+                `;
+            }
+
+            if (derramas > 0) {
+                resultado += `
+                    <div class="desglose-item">
+                        <span class="concepto">🔧 Derramas extraordinarias</span>
+                        <span class="importe">${derramas.toFixed(0).toLocaleString('es-ES')} €</span>
+                    </div>
+                `;
+            }
+
+            if (ibi > 0) {
+                resultado += `
+                    <div class="desglose-item">
+                        <span class="concepto">🏛️ IBI pendiente</span>
+                        <span class="importe">${ibi.toFixed(0).toLocaleString('es-ES')} €</span>
+                    </div>
+                `;
+            }
+
+            if (reparaciones > 0) {
+                resultado += `
+                    <div class="desglose-item">
+                        <span class="concepto">🔨 Reparaciones</span>
+                        <span class="importe">${reparaciones.toFixed(0).toLocaleString('es-ES')} €</span>
+                    </div>
+                `;
+            }
+
+            resultado += `
+                </div>
+
+                <div style="margin-top: 25px; padding: 20px; background: #f8f9ff; border-radius: 12px; border-left: 4px solid #667eea;">
+                    <h3 style="color: #667eea; font-size: 18px; margin-bottom: 10px;">💡 Resumen</h3>
+                    <p style="font-size: 15px; color: #666; line-height: 1.6; margin: 0;">
+                        De los <strong>${precioVenta.toLocaleString('es-ES')} €</strong> del precio de venta, 
+                        deducidos los <strong>${totalGastos.toFixed(0).toLocaleString('es-ES')} €</strong> de gastos, 
+                        recibirás aproximadamente <strong style="color: #667eea;">${(precioVenta - totalGastos).toFixed(0).toLocaleString('es-ES')} €</strong> netos.
+                    </p>
                 </div>
             `;
 
-            document.getElementById("contenidoResultado").innerHTML = resultadoHTML;
-            const mensaje = encodeURIComponent(`Hola, he calculado mis gastos de venta en Girona. Total estimado: ${totalGastos.toLocaleString('es-ES')} €. ¿Podéis ayudarme?`);
-            document.getElementById("whatsappBtn").href = `https://wa.me/34633105305?text=${mensaje}`;
-            document.getElementById("modalResultado").classList.add('modal-visible');
+            document.getElementById('contenidoResultado').innerHTML = resultado;
+
+            // WhatsApp
+            const mensajeWhatsApp = encodeURIComponent(
+                `Hola Fabián, acabo de calcular los gastos de venta de mi vivienda.\n\n` +
+                `💰 Precio de venta: ${precioVenta.toLocaleString('es-ES')}€\n` +
+                `📊 Gastos totales: ${totalGastos.toFixed(0).toLocaleString('es-ES')}€\n` +
+                `✅ Beneficio neto: ${(precioVenta - totalGastos).toFixed(0).toLocaleString('es-ES')}€\n\n` +
+                `¿Puedes ayudarme con la venta?`
+            );
+            document.getElementById('whatsappBtn').href = `https://wa.me/34633105305?text=${mensajeWhatsApp}`;
+
+            document.getElementById('modalResultado').classList.add('modal-visible');
             document.body.style.overflow = 'hidden';
         }
 
         function cerrarModal() {
-            document.getElementById("modalResultado").classList.remove('modal-visible');
+            document.getElementById('modalResultado').classList.remove('modal-visible');
             document.body.style.overflow = '';
         }
     </script>
