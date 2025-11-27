@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora Beneficio Neto al Vender - Madrid</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: white;
+            min-height: 100vh;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            overflow: hidden;
+        }
+
+        .header {
+            background: white;
+            color: #333;
+            padding: 40px 30px;
+            text-align: center;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 600;
+            margin: 0 0 20px 0;
+            line-height: 1.3;
+        }
+
+        .header img {
+            height: 70px;
+            width: auto;
+            margin-top: 15px;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 30px;
+        }
+
+        label {
+            display: block;
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 12px;
+        }
+
+        .slider-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: #e0e0e0;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+
+        .campo-explicacion {
+            font-size: 14px;
+            color: #666;
+            font-style: italic;
+            margin-top: 8px;
+            line-height: 1.4;
+        }
+
+        button {
+            width: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: bold;
+            padding: 18px;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            margin-top: 20px;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: white;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            padding: 40px 20px;
+            overflow-y: auto;
+            visibility: hidden;
+            opacity: 0;
+            transform: translateX(100%);
+            transition: transform 0.4s ease-out, opacity 0.4s ease-out, visibility 0s 0.4s;
+        }
+
+        .modal.modal-visible {
+            visibility: visible;
+            opacity: 1;
+            transform: translateX(0);
+            transition: transform 0.4s ease-out, opacity 0.4s ease-out, visibility 0s 0s;
+        }
+
+        .modal-content {
+            width: 100%;
+            max-width: 500px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px 30px;
+            border-radius: 12px;
+            color: white;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+        }
+
+        .modal-content h2 {
+            font-size: 24px;
+            margin-bottom: 25px;
+            font-weight: 600;
+        }
+
+        .resultado-item {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        .resultado-destacado {
+            background: rgba(255, 255, 255, 0.25);
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-size: 22px;
+            font-weight: 600;
+        }
+
+        .aviso {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .agente-card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin-top: 30px;
+            text-align: center;
+            color: #333;
+        }
+
+        .agente-imagen {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 50%;
+            margin: 0 auto 15px;
+            display: block;
+            border: 3px solid #667eea;
+        }
+
+        .agente-card p {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        #whatsappBtn {
+            background-color: #25D366;
+            color: white;
+            font-weight: bold;
+            padding: 18px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            width: 100%;
+            max-width: 300px;
+            transition: background-color 0.3s ease;
+        }
+
+        #whatsappBtn:hover {
+            background-color: #20ba5a;
+        }
+
+        .close-x {
+            margin-top: 30px;
+            font-size: 40px;
+            color: rgba(255, 255, 255, 0.6);
+            cursor: pointer;
+            transition: color 0.2s ease;
+        }
+
+        .close-x:hover {
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Calculadora<br>Beneficio Neto al Vender</h1>
+            <img src="https://raw.githubusercontent.com/inmokit/calculadoras/refs/heads/main/ayuntamiento-madrid.jpg" alt="Ayuntamiento de Madrid" onerror="this.onerror=null; this.src='https://raw.githubusercontent.com/inmokit/calculadoras/refs/heads/main/pepa-barros.jpg';">
+        </div>
+
+        <div class="content">
+            <div class="form-group">
+                <label>💰 Precio de venta (€)</label>
+                <div class="slider-value" id="precioVentaValue">300.000 €</div>
+                <input type="range" id="precioVenta" min="50000" max="2000000" step="10000" value="300000" oninput="updateValue('precioVenta', this.value)">
+                <p class="campo-explicacion">Precio total al que vendes la vivienda.</p>
+            </div>
+
+            <div class="form-group">
+                <label>🏠 Precio de compra (€)</label>
+                <div class="slider-value" id="precioCompraValue">200.000 €</div>
+                <input type="range" id="precioCompra" min="20000" max="1500000" step="10000" value="200000" oninput="updateValue('precioCompra', this.value)">
+                <p class="campo-explicacion">Precio que pagaste cuando compraste la vivienda.</p>
+            </div>
+
+            <div class="form-group">
+                <label>📅 Años de propiedad</label>
+                <div class="slider-value" id="aniosPropiedadValue">10 años</div>
+                <input type="range" id="aniosPropiedad" min="1" max="50" step="1" value="10" oninput="updateValue('aniosPropiedad', this.value, ' años')">
+                <p class="campo-explicacion">Años que has sido propietario de la vivienda.</p>
+            </div>
+
+            <div class="form-group">
+                <label>📊 Valor catastral del suelo (€)</label>
+                <div class="slider-value" id="valorCatastralValue">50.000 €</div>
+                <input type="range" id="valorCatastral" min="10000" max="500000" step="5000" value="50000" oninput="updateValue('valorCatastral', this.value)">
+                <p class="campo-explicacion">Lo encuentras en el recibo del IBI. Es solo el valor del suelo, no de la construcción.</p>
+            </div>
+
+            <div class="form-group">
+                <label>🔧 Mejoras realizadas (€)</label>
+                <div class="slider-value" id="mejorasValue">0 €</div>
+                <input type="range" id="mejoras" min="0" max="200000" step="5000" value="0" oninput="updateValue('mejoras', this.value)">
+                <p class="campo-explicacion">Reformas importantes: cocina, baños, instalaciones. No mantenimiento.</p>
+            </div>
+
+            <div class="form-group">
+                <label>💼 Honorarios inmobiliaria (%)</label>
+                <div class="slider-value" id="comisionValue">3 %</div>
+                <input type="range" id="comision" min="0" max="10" step="0.5" value="3" oninput="updateValue('comision', this.value, ' %')">
+                <p class="campo-explicacion">Porcentaje para la inmobiliaria por gestionar todo el proceso la venta, trámites, burocracia, visitas, negociación, optimización fiscal, etc... Normalmente entre 4% y 6%.</p>
+            </div>
+
+            <div class="form-group">
+                <label>🎂 Edad del vendedor</label>
+                <div class="slider-value" id="edadValue">45 años</div>
+                <input type="range" id="edad" min="18" max="100" step="1" value="45" oninput="updateValue('edad', this.value, ' años')">
+                <p class="campo-explicacion">Si eres mayor de 65 años y es tu vivienda habitual, estás exento de IRPF.</p>
+            </div>
+
+            <button onclick="calcularBeneficio()">Calcular Beneficio Neto</button>
+        </div>
+    </div>
+
+    <div class="modal" id="modalResultado">
+        <div class="modal-content">
+            <h2>Resultado estimado</h2>
+            <div id="contenidoResultado"></div>
+            <div class="aviso">
+                ⚠️ Estos son datos estimados. Consulta con un profesional para confirmar tu situación.
+            </div>
+        </div>
+
+        <div class="agente-card">
+            <img src="https://raw.githubusercontent.com/inmokit/calculadoras/refs/heads/main/pepa-barros.jpg" alt="Pepa Barros" class="agente-imagen">
+            <p>¿Quieres que lo revisemos contigo? Escríbenos por WhatsApp 👇</p>
+            <a id="whatsappBtn" href="#" target="_blank">Abrir WhatsApp ➜</a>
+        </div>
+
+        <span class="close-x" onclick="cerrarModal()">×</span>
+    </div>
+
+    <script>
+        function updateValue(id, value, suffix = ' €') {
+            const numValue = parseFloat(value);
+            if (suffix === ' €') {
+                document.getElementById(id + 'Value').textContent = numValue.toLocaleString('es-ES') + suffix;
+            } else {
+                document.getElementById(id + 'Value').textContent = numValue + suffix;
+            }
+        }
+
+        function calcularBeneficio() {
+            const precioVenta = parseFloat(document.getElementById("precioVenta").value) || 0;
+            const precioCompra = parseFloat(document.getElementById("precioCompra").value) || 0;
+            const aniosPropiedad = parseInt(document.getElementById("aniosPropiedad").value) || 1;
+            const valorCatastral = parseFloat(document.getElementById("valorCatastral").value) || 0;
+            const mejoras = parseFloat(document.getElementById("mejoras").value) || 0;
+            const comisionPct = parseFloat(document.getElementById("comision").value) || 0;
+            const edad = parseInt(document.getElementById("edad").value) || 45;
+
+            // 1. Comisión inmobiliaria
+            const comision = precioVenta * (comisionPct / 100);
+
+            // 2. Plusvalía municipal (usando coeficientes Madrid)
+            const coeficientes = {
+                1: 0.15, 2: 0.14, 3: 0.15, 4: 0.16, 5: 0.18,
+                6: 0.19, 7: 0.20, 8: 0.15, 9: 0.12, 10: 0.10,
+                11: 0.08, 12: 0.07, 13: 0.07, 14: 0.07, 15: 0.07,
+                16: 0.08, 17: 0.13, 18: 0.17, 19: 0.23, 20: 0.40
+            };
+            
+            const periodo = Math.min(aniosPropiedad, 20);
+            const coef = coeficientes[periodo] || 0.40;
+            const baseImponiblePlusvalia = valorCatastral * coef;
+            const plusvalia = baseImponiblePlusvalia * 0.29; // 29% Madrid
+
+            // 3. IRPF - Ganancia patrimonial
+            const ganancia = precioVenta - precioCompra - mejoras - comision - plusvalia;
+            let irpf = 0;
+            
+            if (edad >= 65) {
+                // Exento si es vivienda habitual
+                irpf = 0;
+            } else if (ganancia > 0) {
+                // Tramos IRPF 2025
+                if (ganancia <= 6000) {
+                    irpf = ganancia * 0.19;
+                } else if (ganancia <= 50000) {
+                    irpf = 6000 * 0.19 + (ganancia - 6000) * 0.21;
+                } else if (ganancia <= 200000) {
+                    irpf = 6000 * 0.19 + 44000 * 0.21 + (ganancia - 50000) * 0.23;
+                } else if (ganancia <= 300000) {
+                    irpf = 6000 * 0.19 + 44000 * 0.21 + 150000 * 0.23 + (ganancia - 200000) * 0.27;
+                } else {
+                    irpf = 6000 * 0.19 + 44000 * 0.21 + 150000 * 0.23 + 100000 * 0.27 + (ganancia - 300000) * 0.30;
+                }
+            }
+
+            // 4. Gastos notariales y registro (estimación)
+            const notariaRegistro = precioVenta * 0.004; // 0.4%
+
+            // 5. Beneficio neto
+            const totalGastos = comision + plusvalia + irpf + notariaRegistro;
+            const beneficioNeto = precioVenta - precioCompra - totalGastos;
+
+            let resultadoHTML = `
+                <div class="resultado-item">
+                    <strong>Precio de venta</strong><br>
+                    ${precioVenta.toLocaleString('es-ES')} €
+                </div>
+                <div class="resultado-item">
+                    <strong>Comisión inmobiliaria (${comisionPct}%)</strong><br>
+                    -${comision.toLocaleString('es-ES')} €
+                </div>
+                <div class="resultado-item">
+                    <strong>Plusvalía municipal (estimada)</strong><br>
+                    -${plusvalia.toLocaleString('es-ES')} €
+                </div>
+                <div class="resultado-item">
+                    <strong>IRPF Ganancia Patrimonial</strong><br>
+                    -${irpf.toLocaleString('es-ES')} €
+                    ${edad >= 65 ? '<br><em>(Exento por +65 años)</em>' : ''}
+                </div>
+                <div class="resultado-item">
+                    <strong>Notaría y registro (est.)</strong><br>
+                    -${notariaRegistro.toLocaleString('es-ES')} €
+                </div>
+                <div class="resultado-destacado">
+                    Beneficio neto estimado:<br>
+                    ${beneficioNeto.toLocaleString('es-ES', {maximumFractionDigits: 0})} €
+                </div>
+            `;
+
+            document.getElementById("contenidoResultado").innerHTML = resultadoHTML;
+            const mensaje = encodeURIComponent(`Hola Pepa, he calculado mi beneficio neto al vender en Madrid. Beneficio estimado: ${beneficioNeto.toLocaleString('es-ES')} €. ¿Podéis ayudarme?`);
+            document.getElementById("whatsappBtn").href = `https://wa.me/34689487900?text=${mensaje}`;
+            document.getElementById("modalResultado").classList.add('modal-visible');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function cerrarModal() {
+            document.getElementById("modalResultado").classList.remove('modal-visible');
+            document.body.style.overflow = '';
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora Impuesto de Sucesiones - Madrid</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: white;
+            min-height: 100vh;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            overflow: hidden;
+        }
+
+        .header {
+            background: white;
+            color: #333;
+            padding: 40px 30px;
+            text-align: center;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 600;
+            margin: 0 0 20px 0;
+            line-height: 1.3;
+        }
+
+        .header img {
+            height: 70px;
+            width: auto;
+            margin-top: 15px;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 30px;
+        }
+
+        label {
+            display: block;
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 12px;
+        }
+
+        .slider-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: #e0e0e0;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+
+        .campo-explicacion {
+            font-size: 14px;
+            color: #666;
+            font-style: italic;
+            margin-top: 8px;
+            line-height: 1.4;
+        }
+
+        .radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .radio-option {
+            padding: 16px;
+            font-size: 16px;
+            text-align: center;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            background-color: #f8f9fa;
+            transition: all 0.3s ease;
+        }
+
+        .radio-option.selected {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #667eea;
+        }
+
+        button {
+            width: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: bold;
+            padding: 18px;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            margin-top: 20px;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: white;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            padding: 40px 20px;
+            overflow-y: auto;
+            visibility: hidden;
+            opacity: 0;
+            transform: translateX(100%);
+            transition: transform 0.4s ease-out, opacity 0.4s ease-out, visibility 0s 0.4s;
+        }
+
+        .modal.modal-visible {
+            visibility: visible;
+            opacity: 1;
+            transform: translateX(0);
+            transition: transform 0.4s ease-out, opacity 0.4s ease-out, visibility 0s 0s;
+        }
+
+        .modal-content {
+            width: 100%;
+            max-width: 500px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px 30px;
+            border-radius: 12px;
+            color: white;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+        }
+
+        .modal-content h2 {
+            font-size: 24px;
+            margin-bottom: 25px;
+            font-weight: 600;
+        }
+
+        .resultado-item {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        .resultado-destacado {
+            background: rgba(255, 255, 255, 0.25);
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-size: 22px;
+            font-weight: 600;
+        }
+
+        .aviso {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .agente-card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin-top: 30px;
+            text-align: center;
+            color: #333;
+        }
+
+        .agente-imagen {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 50%;
+            margin: 0 auto 15px;
+            display: block;
+            border: 3px solid #667eea;
+        }
+
+        .agente-card p {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        #whatsappBtn {
+            background-color: #25D366;
+            color: white;
+            font-weight: bold;
+            padding: 18px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            width: 100%;
+            max-width: 300px;
+            transition: background-color 0.3s ease;
+        }
+
+        #whatsappBtn:hover {
+            background-color: #20ba5a;
+        }
+
+        .close-x {
+            margin-top: 30px;
+            font-size: 40px;
+            color: rgba(255, 255, 255, 0.6);
+            cursor: pointer;
+            transition: color 0.2s ease;
+        }
+
+        .close-x:hover {
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Calculadora<br>Impuesto de Sucesiones</h1>
+            <img src="https://raw.githubusercontent.com/inmokit/calculadoras/refs/heads/main/ayuntamiento-madrid.jpg" alt="Ayuntamiento de Madrid" onerror="this.onerror=null; this.src='https://raw.githubusercontent.com/inmokit/calculadoras/refs/heads/main/pepa-barros.jpg';">
+        </div>
+
+        <div class="content">
+            <div class="form-group">
+                <label>🏠 Valor de la vivienda heredada (€)</label>
+                <div class="slider-value" id="valorViviendaValue">250.000 €</div>
+                <input type="range" id="valorVivienda" min="50000" max="2000000" step="10000" value="250000" oninput="updateValue('valorVivienda', this.value)">
+                <p class="campo-explicacion">Es lo que vale la casa que has heredado. Lo puedes consultar en el valor de mercado o en la tasación.</p>
+            </div>
+
+            <div class="form-group">
+                <label>📊 Porcentaje que heredas (%)</label>
+                <div class="slider-value" id="porcentajeHerenciaValue">50 %</div>
+                <input type="range" id="porcentajeHerencia" min="0" max="100" step="5" value="50" oninput="updateValue('porcentajeHerencia', this.value, '%')">
+                <p class="campo-explicacion">Es la parte de la casa que te toca. Si sois 2 herederos y te toca la mitad, pon 50.</p>
+            </div>
+
+            <div class="form-group">
+                <label>🏦 Hipoteca pendiente (€)</label>
+                <div class="slider-value" id="hipotecaValue">0 €</div>
+                <input type="range" id="hipoteca" min="0" max="500000" step="5000" value="0" oninput="updateValue('hipoteca', this.value)">
+                <p class="campo-explicacion">Lo que aún quedaba por pagar del préstamo de la casa. Si no tiene hipoteca, déjalo en 0.</p>
+            </div>
+
+            <div class="form-group">
+                <label>🧺 Valor de ajuar doméstico (€)</label>
+                <div class="slider-value" id="ajuarValue">7.500 €</div>
+                <input type="range" id="ajuar" min="0" max="100000" step="1000" value="7500" oninput="updateValue('ajuar', this.value)">
+                <p class="campo-explicacion">Muebles, electrodomésticos, etc. Por ley suele ser el 3% del valor de la casa.</p>
+            </div>
+
+            <div class="form-group">
+                <label>💰 Gastos deducibles (€)</label>
+                <div class="slider-value" id="gastosValue">0 €</div>
+                <input type="range" id="gastos" min="0" max="50000" step="500" value="0" oninput="updateValue('gastos', this.value)">
+                <p class="campo-explicacion">Gastos de notario, gestoría, impuestos que tuviste que pagar para heredar.</p>
+            </div>
+
+            <div class="form-group">
+                <label>👫 Grado de parentesco</label>
+                <div class="radio-group" id="grupoParentesco">
+                    <div class="radio-option selected" onclick="seleccionar('parentesco', 1, this)">👶 Hijo, nieto o bisnieto</div>
+                    <div class="radio-option" onclick="seleccionar('parentesco', 2, this)">💍 Cónyuge o pareja estable</div>
+                    <div class="radio-option" onclick="seleccionar('parentesco', 2, this)">👴 Padre, abuelo o bisabuelo</div>
+                    <div class="radio-option" onclick="seleccionar('parentesco', 3, this)">🧔‍♂️ Hermano, tío o sobrino</div>
+                    <div class="radio-option" onclick="seleccionar('parentesco', 4, this)">❓ Otros (sin parentesco)</div>
+                </div>
+                <input type="hidden" id="parentesco" value="1">
+                <p class="campo-explicacion">Cuanto más cercano el vínculo, menos se paga. En Madrid hay importantes bonificaciones.</p>
+            </div>
+
+            <div class="form-group">
+                <label>🎂 Edad del heredero</label>
+                <div class="slider-value" id="edadValue">30 años</div>
+                <input type="range" id="edad" min="0" max="100" step="1" value="30" oninput="updateValue('edad', this.value, ' años')">
+                <p class="campo-explicacion">Tu edad cuando heredaste. Si eres hijo menor de 21 años, hay reducción adicional.</p>
+            </div>
+
+            <div class="form-group">
+                <label>💼 Patrimonio preexistente (€)</label>
+                <div class="slider-value" id="patrimonioValue">100.000 €</div>
+                <input type="range" id="patrimonio" min="0" max="2000000" step="10000" value="100000" oninput="updateValue('patrimonio', this.value)">
+                <p class="campo-explicacion">Lo que ya tenías en dinero, propiedades o inversiones antes de heredar.</p>
+            </div>
+
+            <button onclick="calcularISD()">Calcular Impuesto</button>
+        </div>
+    </div>
+
+    <div class="modal" id="modalResultado">
+        <div class="modal-content">
+            <h2>Resultado estimado</h2>
+            <div id="contenidoResultado"></div>
+            <div class="aviso">
+                ⚠️ Estos son datos estimados. Consulta con un profesional para confirmar tu situación.
+            </div>
+        </div>
+
+        <div class="agente-card">
+            <img src="https://raw.githubusercontent.com/inmokit/calculadoras/refs/heads/main/pepa-barros.jpg" alt="Pepa Barros" class="agente-imagen">
+            <p>Si quieres que lo calculemos para tu caso, envíanos un WhatsApp ahora 👇</p>
+            <a id="whatsappBtn" href="#" target="_blank">Abrir WhatsApp ➜</a>
+        </div>
+
+        <span class="close-x" onclick="cerrarModal()">×</span>
+    </div>
+
+    <script>
+        function updateValue(id, value, suffix = ' €') {
+            const numValue = parseFloat(value);
+            if (suffix === ' €') {
+                document.getElementById(id + 'Value').textContent = numValue.toLocaleString('es-ES') + suffix;
+            } else {
+                document.getElementById(id + 'Value').textContent = numValue + suffix;
+            }
+        }
+
+        function seleccionar(id, valor, el) {
+            document.getElementById(id).value = valor;
+            let groupElement = document.getElementById('grupoParentesco');
+            if (groupElement) {
+                groupElement.querySelectorAll('.radio-option').forEach(opt => opt.classList.remove('selected'));
+            }
+            el.classList.add('selected');
+        }
+
+        function calcularISD() {
+            const valorVivienda = parseFloat(document.getElementById("valorVivienda").value) || 0;
+            const porcentajeHerencia = parseFloat(document.getElementById("porcentajeHerencia").value) || 0;
+            const hipoteca = parseFloat(document.getElementById("hipoteca").value) || 0;
+            const ajuar = parseFloat(document.getElementById("ajuar").value) || 0;
+            const gastos = parseFloat(document.getElementById("gastos").value) || 0;
+            const patrimonio = parseFloat(document.getElementById("patrimonio").value) || 0;
+            const parentesco = parseInt(document.getElementById("parentesco").value) || 4;
+            const edad = parseInt(document.getElementById("edad").value) || 30;
+
+            const valorHeredadoVivienda = valorVivienda * (porcentajeHerencia / 100);
+            const baseBrutaHerencia = valorHeredadoVivienda + ajuar - (hipoteca * porcentajeHerencia / 100) - gastos;
+            
+            // Reducciones por parentesco en Madrid
+            let reduccion = 0;
+            if (parentesco === 1 && edad < 21) {
+                // Hijos menores de 21: 100.000 + 12.000 por año hasta 21 (max 196.000)
+                reduccion = Math.min(100000 + (21 - edad) * 12000, 196000);
+            } else if (parentesco === 1 && edad >= 21) {
+                // Hijos >= 21 años
+                reduccion = 100000;
+            } else if (parentesco === 2) {
+                // Cónyuge, pareja estable, padres, abuelos
+                reduccion = 100000;
+            } else if (parentesco === 3) {
+                // Hermanos, tíos, sobrinos (desde julio 2025)
+                reduccion = 8000;
+            } else {
+                // Sin parentesco
+                reduccion = 0;
+            }
+            
+            const baseImponible = Math.max(0, baseBrutaHerencia - reduccion);
+            
+            // Tipo impositivo progresivo (7.65% - 34%)
+            let cuotaIntegra = 0;
+            if (baseImponible <= 7993.46) {
+                cuotaIntegra = baseImponible * 0.0765;
+            } else if (baseImponible <= 31956.70) {
+                cuotaIntegra = 611.50 + (baseImponible - 7993.46) * 0.0850;
+            } else if (baseImponible <= 79893.18) {
+                cuotaIntegra = 2652.42 + (baseImponible - 31956.70) * 0.0935;
+            } else if (baseImponible <= 239659.65) {
+                cuotaIntegra = 7132.51 + (baseImponible - 79893.18) * 0.1035;
+            } else if (baseImponible <= 399266.09) {
+                cuotaIntegra = 23665.83 + (baseImponible - 239659.65) * 0.1570;
+            } else if (baseImponible <= 797555.08) {
+                cuotaIntegra = 48732.12 + (baseImponible - 399266.09) * 0.2025;
+            } else {
+                cuotaIntegra = 129353.67 + (baseImponible - 797555.08) * 0.34;
+            }
+
+            // Coeficiente multiplicador según patrimonio
+            let coeficiente = 1.0;
+            if (patrimonio < 500000) {
+                coeficiente = 1.0;
+            } else if (patrimonio < 2000000) {
+                coeficiente = 1.2;
+            } else {
+                coeficiente = 1.5;
+            }
+
+            const cuotaTributaria = cuotaIntegra * coeficiente;
+
+            // Bonificación Madrid 2025
+            let bonificacion = 0;
+            if (parentesco === 1 || parentesco === 2) {
+                // Grupos I y II (hijos, cónyuges, padres): 99%
+                bonificacion = 0.99;
+            } else if (parentesco === 3) {
+                // Grupo III (hermanos, tíos, sobrinos): 50% desde julio 2025
+                bonificacion = 0.50;
+            }
+
+            const cuotaLiquida = cuotaTributaria * (1 - bonificacion);
+
+            let resultadoHTML = `
+                <div class="resultado-item">
+                    <strong>Valor heredado</strong><br>
+                    ${baseBrutaHerencia.toLocaleString('es-ES')} €
+                </div>
+                <div class="resultado-item">
+                    <strong>Reducciones por parentesco</strong><br>
+                    ${reduccion.toLocaleString('es-ES')} €
+                </div>
+                <div class="resultado-item">
+                    <strong>Base liquidable</strong><br>
+                    ${baseImponible.toLocaleString('es-ES')} €
+                </div>
+                <div class="resultado-item">
+                    <strong>Bonificación aplicada</strong><br>
+                    ${(bonificacion * 100).toFixed(0)}%
+                </div>
+                <div class="resultado-destacado">
+                    Cuota a pagar: ${cuotaLiquida.toLocaleString('es-ES', {maximumFractionDigits: 0})} €
+                </div>
+            `;
+
+            document.getElementById("contenidoResultado").innerHTML = resultadoHTML;
+            const mensaje = encodeURIComponent(`Hola Pepa, he calculado mi impuesto de sucesiones en Madrid. ¿Podéis ayudarme?`);
+            document.getElementById("whatsappBtn").href = `https://wa.me/34689487900?text=${mensaje}`;
+            document.getElementById("modalResultado").classList.add('modal-visible');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function cerrarModal() {
+            document.getElementById("modalResultado").classList.remove('modal-visible');
+            document.body.style.overflow = '';
+        }
+    </script>
+</body>
+</html>
