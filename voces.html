@@ -177,9 +177,9 @@ function replaceVariables(text){
     return text.replace(/\[inmobiliaria\]/gi,inmo).replace(/\[ciudad\]/gi,city);
 }
 
-function splitLongPhrase(text,minLen,maxLen){
-    minLen=minLen||80;
-    maxLen=maxLen||120;
+function splitLongPhrase(text){
+    var minLen=80;
+    var maxLen=100;
     if(text.length<=maxLen)return [text];
     
     var parts=[];
@@ -188,33 +188,42 @@ function splitLongPhrase(text,minLen,maxLen){
     while(remaining.length>maxLen){
         var cutPoint=-1;
         
-        // Buscar coma entre minLen y maxLen (de atrás hacia adelante)
-        for(var i=Math.min(maxLen,remaining.length-1);i>=minLen;i--){
+        // 1. Buscar coma entre minLen y maxLen
+        for(var i=maxLen;i>=minLen;i--){
             if(remaining[i]===','){
                 cutPoint=i+1;
                 break;
             }
         }
         
-        // Si no hay coma, buscar conjunciones
+        // 2. Si no hay coma en rango, buscar coma antes de minLen (la más cercana a minLen)
         if(cutPoint===-1){
-            var searchArea=remaining.substring(minLen,Math.min(maxLen,remaining.length));
-            var patterns=[' y ',' pero ',' que ',' aunque ',' porque ',' cuando ',' donde ',' como '];
-            var bestIdx=-1;
-            for(var p=0;p<patterns.length;p++){
-                var idx=searchArea.lastIndexOf(patterns[p]);
-                if(idx!==-1&&idx>bestIdx){
-                    bestIdx=idx;
+            for(var i=minLen-1;i>=40;i--){
+                if(remaining[i]===','){
+                    cutPoint=i+1;
+                    break;
                 }
-            }
-            if(bestIdx!==-1){
-                cutPoint=minLen+bestIdx;
             }
         }
         
-        // Si no hay conjunción, buscar espacio más cercano a maxLen
+        // 3. Si no hay coma, buscar conjunciones en el rango
         if(cutPoint===-1){
-            for(var i=Math.min(maxLen,remaining.length-1);i>=minLen;i--){
+            var patterns=[' y ',' pero ',' que ',' aunque ',' porque ',' cuando ',' donde ',' como '];
+            for(var i=maxLen;i>=minLen;i--){
+                for(var p=0;p<patterns.length;p++){
+                    var pat=patterns[p];
+                    if(remaining.substring(i-pat.length,i)===pat){
+                        cutPoint=i-pat.length+1;
+                        break;
+                    }
+                }
+                if(cutPoint!==-1)break;
+            }
+        }
+        
+        // 4. Si nada, buscar espacio más cercano a maxLen
+        if(cutPoint===-1){
+            for(var i=maxLen;i>=minLen;i--){
                 if(remaining[i]===' '){
                     cutPoint=i;
                     break;
@@ -222,7 +231,7 @@ function splitLongPhrase(text,minLen,maxLen){
             }
         }
         
-        // Si nada, forzar corte
+        // 5. Si nada, forzar corte en maxLen
         if(cutPoint===-1)cutPoint=maxLen;
         
         parts.push(remaining.substring(0,cutPoint).trim());
@@ -238,10 +247,7 @@ function parseScript(text){
     var vids=text.split(/\n+/).map(function(v){return v.trim();}).filter(function(v){return v;});
     
     return vids.map(function(v){
-        // Primero separar por puntos y puntos suspensivos
         var rawPhrases=v.split(/\.\.\.|…|\.\s*/).map(function(s){return s.trim();}).filter(function(s){return s;});
-        
-        // Luego partir frases largas
         var finalPhrases=[];
         for(var i=0;i<rawPhrases.length;i++){
             var split=splitLongPhrase(rawPhrases[i]);
