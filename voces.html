@@ -11,7 +11,7 @@
         h1 { text-align: center; font-size: 1.3rem; margin-bottom: 20px; color: #94a3b8; font-weight: 500; }
         .screen { display: none; }
         .screen.active { display: block; }
-        textarea { width: 100%; height: 200px; padding: 16px; border: 1px solid #334155; border-radius: 12px; background: #1e293b; color: #fff; font-size: 16px; resize: none; margin-bottom: 16px; }
+        textarea { width: 100%; height: 200px; padding: 16px; border: 1px solid #334155; border-radius: 12px; background: #1e293b; color: #fff; font-size: 16px; resize: none; margin-bottom: 12px; }
         textarea:focus { outline: none; border-color: #ec4899; }
         textarea::placeholder { color: #64748b; }
         .hint { font-size: 0.75rem; color: #64748b; margin-bottom: 16px; line-height: 1.4; }
@@ -22,6 +22,10 @@
         .row label { font-size: 0.85rem; color: #94a3b8; }
         .row input[type="range"] { width: 100px; accent-color: #ec4899; }
         .row .val { min-width: 40px; text-align: right; color: #ec4899; font-weight: 600; font-size: 0.85rem; }
+        .row-input { display: flex; gap: 10px; margin-bottom: 10px; }
+        .row-input input[type="text"] { flex: 1; padding: 10px 12px; border: 1px solid #334155; border-radius: 8px; background: #0f172a; color: #fff; font-size: 0.9rem; }
+        .row-input input[type="text"]:focus { outline: none; border-color: #ec4899; }
+        .row-input input[type="text"]::placeholder { color: #64748b; }
         select { width: 100%; padding: 12px; border-radius: 8px; border: none; background: #0f172a; color: #fff; font-size: 0.9rem; }
         .btn-start { width: 100%; padding: 16px; font-size: 1rem; font-weight: 600; border: none; border-radius: 12px; background: linear-gradient(135deg, #ec4899, #be185d); color: #fff; cursor: pointer; }
         .btn-start:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
@@ -65,11 +69,20 @@
         <div id="setup" class="screen active">
             <h1>🎧 Teleprompter Auditivo</h1>
             <div id="error" class="error" style="display:none"></div>
+            
+            <div class="section">
+                <div class="section-title">Datos del vídeo</div>
+                <div class="row-input">
+                    <input type="text" id="inmobiliaria" placeholder="Nombre inmobiliaria">
+                    <input type="text" id="ciudad" placeholder="Ciudad">
+                </div>
+            </div>
+            
             <textarea id="script" placeholder="Pega tus guiones aquí...
 
-Cada párrafo = un vídeo
-Usa … para pausas dentro de una frase"></textarea>
-            <div class="hint">💡 Separa cada guion con un salto de línea. Usa <strong>…</strong> para pausas que mantienen la entonación.</div>
+Usa [inmobiliaria] y [ciudad] como variables.
+Cada párrafo = un vídeo"></textarea>
+            <div class="hint">💡 Separa cada guion con un salto de línea. Usa <strong>…</strong> para forzar pausas. Las frases largas se parten automáticamente en comas.</div>
             
             <div class="section">
                 <div class="voice-info">Voz: <span class="voice-name" id="voiceName">Cargando...</span></div>
@@ -158,10 +171,85 @@ async function loadVoices(){
 
 function selectVoice(id,name){cfg.voiceId=id;cfg.voiceName=name;$('voiceName').textContent=name;checkStart();}
 
+function replaceVariables(text){
+    var inmo=$('inmobiliaria').value.trim()||'[inmobiliaria]';
+    var city=$('ciudad').value.trim()||'[ciudad]';
+    return text.replace(/\[inmobiliaria\]/gi,inmo).replace(/\[ciudad\]/gi,city);
+}
+
+function splitLongPhrase(text,minLen,maxLen){
+    minLen=minLen||80;
+    maxLen=maxLen||120;
+    if(text.length<=maxLen)return [text];
+    
+    var parts=[];
+    var remaining=text;
+    
+    while(remaining.length>maxLen){
+        var cutPoint=-1;
+        
+        // Buscar coma entre minLen y maxLen (de atrás hacia adelante)
+        for(var i=Math.min(maxLen,remaining.length-1);i>=minLen;i--){
+            if(remaining[i]===','){
+                cutPoint=i+1;
+                break;
+            }
+        }
+        
+        // Si no hay coma, buscar conjunciones
+        if(cutPoint===-1){
+            var searchArea=remaining.substring(minLen,Math.min(maxLen,remaining.length));
+            var patterns=[' y ',' pero ',' que ',' aunque ',' porque ',' cuando ',' donde ',' como '];
+            var bestIdx=-1;
+            for(var p=0;p<patterns.length;p++){
+                var idx=searchArea.lastIndexOf(patterns[p]);
+                if(idx!==-1&&idx>bestIdx){
+                    bestIdx=idx;
+                }
+            }
+            if(bestIdx!==-1){
+                cutPoint=minLen+bestIdx;
+            }
+        }
+        
+        // Si no hay conjunción, buscar espacio más cercano a maxLen
+        if(cutPoint===-1){
+            for(var i=Math.min(maxLen,remaining.length-1);i>=minLen;i--){
+                if(remaining[i]===' '){
+                    cutPoint=i;
+                    break;
+                }
+            }
+        }
+        
+        // Si nada, forzar corte
+        if(cutPoint===-1)cutPoint=maxLen;
+        
+        parts.push(remaining.substring(0,cutPoint).trim());
+        remaining=remaining.substring(cutPoint).trim();
+    }
+    
+    if(remaining.length>0)parts.push(remaining);
+    return parts;
+}
+
 function parseScript(text){
+    text=replaceVariables(text);
     var vids=text.split(/\n+/).map(function(v){return v.trim();}).filter(function(v){return v;});
+    
     return vids.map(function(v){
-        return v.split(/\.\.\.|…|\.\s*/).map(function(s){return s.trim();}).filter(function(s){return s;});
+        // Primero separar por puntos y puntos suspensivos
+        var rawPhrases=v.split(/\.\.\.|…|\.\s*/).map(function(s){return s.trim();}).filter(function(s){return s;});
+        
+        // Luego partir frases largas
+        var finalPhrases=[];
+        for(var i=0;i<rawPhrases.length;i++){
+            var split=splitLongPhrase(rawPhrases[i]);
+            for(var j=0;j<split.length;j++){
+                finalPhrases.push(split[j]);
+            }
+        }
+        return finalPhrases;
     });
 }
 
