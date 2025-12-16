@@ -1,438 +1,451 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Comment Generator</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <script type="text/babel">
+    const { useState, useRef, useCallback } = React;
 
-export default function CommentGenerator() {
-  const [photos, setPhotos] = useState([]);
-  const [comments, setComments] = useState('');
-  const [parsedComments, setParsedComments] = useState([]);
-  const [generating, setGenerating] = useState(false);
-  const [previews, setPreviews] = useState({ instagram: [], tiktok: [] });
-  const [jsZipLoaded, setJsZipLoaded] = useState(false);
-  const canvasRef = useRef(null);
+    function CommentGenerator() {
+      const [photos, setPhotos] = useState([]);
+      const [comments, setComments] = useState('');
+      const [parsedComments, setParsedComments] = useState([]);
+      const [generating, setGenerating] = useState(false);
+      const [previews, setPreviews] = useState({ instagram: [], tiktok: [] });
+      const canvasRef = useRef(null);
 
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
-    script.onload = () => setJsZipLoaded(true);
-    document.head.appendChild(script);
-    return () => {
-      if (document.head.contains(script)) {
-        document.head.removeChild(script);
-      }
-    };
-  }, []);
-
-  const handlePhotosUpload = (e) => {
-    const files = Array.from(e.target.files);
-    const photoPromises = files.map(file => {
-      return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => resolve(e.target.result);
-        reader.readAsDataURL(file);
-      });
-    });
-    Promise.all(photoPromises).then(setPhotos);
-  };
-
-  const parseComments = useCallback((text) => {
-    const lines = text.trim().split('\n').filter(line => line.includes(':'));
-    return lines.map(line => {
-      const colonIndex = line.indexOf(':');
-      return {
-        username: line.substring(0, colonIndex).trim(),
-        comment: line.substring(colonIndex + 1).trim()
+      const handlePhotosUpload = (e) => {
+        const files = Array.from(e.target.files);
+        const photoPromises = files.map(file => {
+          return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (ev) => resolve(ev.target.result);
+            reader.readAsDataURL(file);
+          });
+        });
+        Promise.all(photoPromises).then(setPhotos);
       };
-    });
-  }, []);
 
-  const handleCommentsChange = (e) => {
-    const text = e.target.value;
-    setComments(text);
-    setParsedComments(parseComments(text));
-  };
+      const parseComments = useCallback((text) => {
+        const lines = text.trim().split('\n').filter(line => line.includes(':'));
+        return lines.map(line => {
+          const colonIndex = line.indexOf(':');
+          const username = line.substring(0, colonIndex).trim();
+          let afterColon = line.substring(colonIndex + 1).trim();
+          
+          let commentText = afterColon;
+          let filename = null;
+          
+          if (afterColon.includes('|')) {
+            const pipeIndex = afterColon.lastIndexOf('|');
+            commentText = afterColon.substring(0, pipeIndex).trim();
+            const rawFilename = afterColon.substring(pipeIndex + 1).trim();
+            const dotIndex = rawFilename.lastIndexOf('.');
+            filename = dotIndex > 0 ? rawFilename.substring(0, dotIndex) : rawFilename;
+          }
+          
+          return { username: username, comment: commentText, filename: filename };
+        });
+      }, []);
 
-  const shuffleArray = (array) => {
-    const shuffled = [...array];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    return shuffled;
-  };
+      const handleCommentsChange = (e) => {
+        const text = e.target.value;
+        setComments(text);
+        setParsedComments(parseComments(text));
+      };
 
-  const assignPhotos = () => {
-    const shuffledPhotos = shuffleArray(photos);
-    return parsedComments.map((comment, index) => ({
-      ...comment,
-      photo: shuffledPhotos[index] || null
-    }));
-  };
+      const shuffleArray = (array) => {
+        const shuffled = [...array];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        return shuffled;
+      };
 
-  const wrapText = (ctx, text, maxWidth) => {
-    const words = text.split(' ');
-    const lines = [];
-    let currentLine = '';
-    
-    words.forEach(word => {
-      const testLine = currentLine ? `${currentLine} ${word}` : word;
-      const metrics = ctx.measureText(testLine);
-      if (metrics.width > maxWidth && currentLine) {
-        lines.push(currentLine);
-        currentLine = word;
-      } else {
-        currentLine = testLine;
-      }
-    });
-    if (currentLine) lines.push(currentLine);
-    return lines;
-  };
+      const assignPhotos = () => {
+        const shuffledPhotos = shuffleArray(photos);
+        return parsedComments.map((c, index) => ({
+          username: c.username,
+          comment: c.comment,
+          filename: c.filename,
+          photo: shuffledPhotos[index] || null
+        }));
+      };
 
-  const drawAvatar = async (ctx, photo, x, y, size, bgColor = '#E5E5E5') => {
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI * 2);
-    ctx.closePath();
-    ctx.clip();
-    
-    if (photo) {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      await new Promise((resolve) => {
-        img.onload = resolve;
-        img.onerror = resolve;
-        img.src = photo;
-      });
-      ctx.drawImage(img, x, y, size, size);
-    } else {
-      ctx.fillStyle = bgColor;
-      ctx.fillRect(x, y, size, size);
-      
-      ctx.fillStyle = '#A0A0A0';
-      ctx.beginPath();
-      ctx.arc(x + size / 2, y + size * 0.35, size * 0.20, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.ellipse(x + size / 2, y + size * 0.85, size * 0.32, size * 0.28, 0, Math.PI, 0);
-      ctx.fill();
-    }
-    ctx.restore();
-  };
-
-  // ============================================
-  // INSTAGRAM - Ajustado para coincidir con original
-  // ============================================
-  const drawInstagramComment = async (ctx, comment) => {
-    const padding = 45;
-    const avatarSize = 110;
-    const gap = 30;
-    const textFontSize = 48;
-    const textLineHeight = 58;
-    const metaFontSize = 38;
-    const metaLineHeight = 46;
-    const maxTextWidth = 620;
-    const bubbleRadius = 40;
-    
-    // Medir texto
-    ctx.font = `400 ${textFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-    const commentLines = wrapText(ctx, comment.comment, maxTextWidth);
-    const textBlockHeight = commentLines.length * textLineHeight;
-    
-    // Calcular dimensiones
-    const textX = padding + avatarSize + gap;
-    const textY = padding;
-    const metaY = textY + textBlockHeight + 30;
-    
-    const bubbleWidth = padding + avatarSize + gap + maxTextWidth + padding;
-    const bubbleHeight = metaY + metaLineHeight + padding;
-    
-    ctx.canvas.width = bubbleWidth;
-    ctx.canvas.height = bubbleHeight;
-    ctx.clearRect(0, 0, bubbleWidth, bubbleHeight);
-    
-    // Burbuja redondeada
-    ctx.fillStyle = '#FFFFFF';
-    ctx.beginPath();
-    ctx.moveTo(bubbleRadius, 0);
-    ctx.lineTo(bubbleWidth - bubbleRadius, 0);
-    ctx.arcTo(bubbleWidth, 0, bubbleWidth, bubbleRadius, bubbleRadius);
-    ctx.lineTo(bubbleWidth, bubbleHeight - bubbleRadius);
-    ctx.arcTo(bubbleWidth, bubbleHeight, bubbleWidth - bubbleRadius, bubbleHeight, bubbleRadius);
-    ctx.lineTo(bubbleRadius, bubbleHeight);
-    ctx.arcTo(0, bubbleHeight, 0, bubbleHeight - bubbleRadius, bubbleRadius);
-    ctx.lineTo(0, bubbleRadius);
-    ctx.arcTo(0, 0, bubbleRadius, 0, bubbleRadius);
-    ctx.closePath();
-    ctx.fill();
-    
-    // Avatar
-    await drawAvatar(ctx, comment.photo, padding, padding, avatarSize, '#F0F0F0');
-    
-    // Texto principal
-    ctx.font = `400 ${textFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-    ctx.fillStyle = '#1A1A1A';
-    commentLines.forEach((line, i) => {
-      ctx.fillText(line, textX, textY + textFontSize + i * textLineHeight);
-    });
-    
-    // Meta "Respondiendo a..."
-    ctx.font = `400 ${metaFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-    ctx.fillStyle = '#8A8A8A';
-    ctx.fillText(`Respondiendo a ${comment.username}`, textX, metaY + metaFontSize);
-    
-    return ctx.canvas.toDataURL('image/png');
-  };
-
-  // ============================================
-  // TIKTOK - Con pico prominente
-  // ============================================
-  const drawTikTokComment = async (ctx, comment) => {
-    const padding = 50;
-    const avatarSize = 120;
-    const gap = 25;
-    const headerFontSize = 52;
-    const headerLineHeight = 62;
-    const textFontSize = 68;
-    const textLineHeight = 82;
-    const maxTextWidth = 680;
-    const bubbleRadius = 40;
-    const arrowWidth = 50;
-    const arrowHeight = 40;
-    
-    // Medir header (siempre 2 líneas)
-    ctx.font = `400 ${headerFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-    const headerLine1 = 'Responde al comentario de';
-    const headerLine2 = comment.username;
-    const headerBlockHeight = headerLineHeight * 2;
-    
-    // Medir texto
-    ctx.font = `700 ${textFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-    const commentLines = wrapText(ctx, comment.comment, maxTextWidth);
-    const textBlockHeight = commentLines.length * textLineHeight;
-    
-    const headerY = padding;
-    const contentY = headerY + headerBlockHeight + 25;
-    const bodyHeight = Math.max(avatarSize, textBlockHeight);
-    
-    const bubbleWidth = padding + avatarSize + gap + maxTextWidth + padding;
-    const bubbleHeight = contentY + bodyHeight + padding;
-    const totalHeight = bubbleHeight + arrowHeight;
-    
-    ctx.canvas.width = bubbleWidth;
-    ctx.canvas.height = totalHeight;
-    ctx.clearRect(0, 0, bubbleWidth, totalHeight);
-    
-    // Burbuja con pico
-    ctx.fillStyle = '#FFFFFF';
-    ctx.beginPath();
-    
-    // Empezar desde arriba izquierda
-    ctx.moveTo(bubbleRadius, 0);
-    // Arriba
-    ctx.lineTo(bubbleWidth - bubbleRadius, 0);
-    ctx.arcTo(bubbleWidth, 0, bubbleWidth, bubbleRadius, bubbleRadius);
-    // Derecha
-    ctx.lineTo(bubbleWidth, bubbleHeight - bubbleRadius);
-    ctx.arcTo(bubbleWidth, bubbleHeight, bubbleWidth - bubbleRadius, bubbleHeight, bubbleRadius);
-    // Abajo (hasta antes del pico)
-    ctx.lineTo(arrowWidth + 20, bubbleHeight);
-    // Pico hacia abajo-izquierda
-    ctx.lineTo(0, bubbleHeight + arrowHeight);
-    // Subir por la izquierda (sin curva en la esquina del pico)
-    ctx.lineTo(0, bubbleRadius);
-    ctx.arcTo(0, 0, bubbleRadius, 0, bubbleRadius);
-    
-    ctx.closePath();
-    ctx.fill();
-    
-    // Header (2 líneas fijas)
-    const textX = padding + avatarSize + gap;
-    ctx.font = `400 ${headerFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-    ctx.fillStyle = '#666666';
-    ctx.fillText(headerLine1, textX, headerY + headerFontSize);
-    ctx.fillText(headerLine2, textX, headerY + headerFontSize + headerLineHeight);
-    
-    // Avatar
-    await drawAvatar(ctx, comment.photo, padding, contentY, avatarSize, '#E5E5E5');
-    
-    // Texto principal (bold)
-    ctx.font = `700 ${textFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-    ctx.fillStyle = '#000000';
-    commentLines.forEach((line, i) => {
-      ctx.fillText(line, textX, contentY + textFontSize + i * textLineHeight);
-    });
-    
-    return ctx.canvas.toDataURL('image/png');
-  };
-
-  const generatePreviews = async () => {
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    const commentsWithPhotos = assignPhotos();
-    
-    const igResults = [];
-    const ttResults = [];
-    
-    for (const comment of commentsWithPhotos) {
-      const igDataUrl = await drawInstagramComment(ctx, comment);
-      const ttDataUrl = await drawTikTokComment(ctx, comment);
-      igResults.push({ username: comment.username, dataUrl: igDataUrl });
-      ttResults.push({ username: comment.username, dataUrl: ttDataUrl });
-    }
-    
-    setPreviews({ instagram: igResults, tiktok: ttResults });
-  };
-
-  const generateZip = async () => {
-    if (!window.JSZip) {
-      alert('JSZip aún está cargando, intenta de nuevo');
-      return;
-    }
-    
-    setGenerating(true);
-    
-    try {
-      const zip = new window.JSZip();
-      const igFolder = zip.folder('instagram');
-      const ttFolder = zip.folder('tiktok');
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      const commentsWithPhotos = assignPhotos();
-      
-      for (let i = 0; i < commentsWithPhotos.length; i++) {
-        const comment = commentsWithPhotos[i];
+      const wrapText = (ctx, text, maxWidth) => {
+        const words = text.split(' ');
+        const lines = [];
+        let currentLine = '';
         
-        const igDataUrl = await drawInstagramComment(ctx, comment);
-        const igBase64 = igDataUrl.split(',')[1];
-        igFolder.file(`${comment.username}_${i + 1}.png`, igBase64, { base64: true });
-        
-        const ttDataUrl = await drawTikTokComment(ctx, comment);
-        const ttBase64 = ttDataUrl.split(',')[1];
-        ttFolder.file(`${comment.username}_${i + 1}.png`, ttBase64, { base64: true });
-      }
-      
-      const blob = await zip.generateAsync({ type: 'blob' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `comentarios_${Date.now()}.zip`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Error:', error);
-      alert('Error al generar ZIP: ' + error.message);
-    }
-    
-    setGenerating(false);
-  };
+        words.forEach(word => {
+          const testLine = currentLine ? currentLine + ' ' + word : word;
+          const metrics = ctx.measureText(testLine);
+          if (metrics.width > maxWidth && currentLine) {
+            lines.push(currentLine);
+            currentLine = word;
+          } else {
+            currentLine = testLine;
+          }
+        });
+        if (currentLine) lines.push(currentLine);
+        return lines;
+      };
 
-  const hasResults = previews.instagram.length > 0 || previews.tiktok.length > 0;
-
-  return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-6xl mx-auto">
-        <h1 className="text-3xl font-bold text-center mb-2">Comment Generator</h1>
-        <p className="text-gray-500 text-center mb-8">Genera comentarios de Instagram y TikTok en bulk</p>
+      const drawAvatar = async (ctx, photo, x, y, size, bgColor) => {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
         
-        <div className="bg-white rounded-2xl shadow-sm border p-6 mb-6">
-          <div className="mb-6">
-            <label className="block font-medium mb-2">
-              Fotos de avatar
-              <span className="text-gray-400 font-normal ml-2">({photos.length} subidas)</span>
-            </label>
-            <input
-              type="file"
-              multiple
-              accept="image/*"
-              onChange={handlePhotosUpload}
-              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-medium file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 cursor-pointer"
-            />
-            {photos.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-3">
-                {photos.map((photo, i) => (
-                  <img key={i} src={photo} alt="" className="w-10 h-10 rounded-full object-cover" />
+        if (photo) {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          await new Promise((resolve) => {
+            img.onload = resolve;
+            img.onerror = resolve;
+            img.src = photo;
+          });
+          ctx.drawImage(img, x, y, size, size);
+        } else {
+          ctx.fillStyle = bgColor || '#E5E5E5';
+          ctx.fillRect(x, y, size, size);
+          
+          ctx.fillStyle = '#A0A0A0';
+          ctx.beginPath();
+          ctx.arc(x + size / 2, y + size * 0.35, size * 0.20, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.ellipse(x + size / 2, y + size * 0.85, size * 0.32, size * 0.28, 0, Math.PI, 0);
+          ctx.fill();
+        }
+        ctx.restore();
+      };
+
+      const drawInstagramComment = async (ctx, commentData) => {
+        const padding = 45;
+        const avatarSize = 110;
+        const gap = 30;
+        const textFontSize = 48;
+        const textLineHeight = 58;
+        const metaFontSize = 38;
+        const metaLineHeight = 46;
+        const maxTextWidth = 620;
+        const bubbleRadius = 40;
+        
+        ctx.font = '400 ' + textFontSize + 'px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        const commentLines = wrapText(ctx, commentData.comment, maxTextWidth);
+        const textBlockHeight = commentLines.length * textLineHeight;
+        
+        const textX = padding + avatarSize + gap;
+        const textY = padding;
+        const metaY = textY + textBlockHeight + 30;
+        
+        const bubbleWidth = padding + avatarSize + gap + maxTextWidth + padding;
+        const bubbleHeight = metaY + metaLineHeight + padding;
+        
+        ctx.canvas.width = bubbleWidth;
+        ctx.canvas.height = bubbleHeight;
+        ctx.clearRect(0, 0, bubbleWidth, bubbleHeight);
+        
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath();
+        ctx.moveTo(bubbleRadius, 0);
+        ctx.lineTo(bubbleWidth - bubbleRadius, 0);
+        ctx.arcTo(bubbleWidth, 0, bubbleWidth, bubbleRadius, bubbleRadius);
+        ctx.lineTo(bubbleWidth, bubbleHeight - bubbleRadius);
+        ctx.arcTo(bubbleWidth, bubbleHeight, bubbleWidth - bubbleRadius, bubbleHeight, bubbleRadius);
+        ctx.lineTo(bubbleRadius, bubbleHeight);
+        ctx.arcTo(0, bubbleHeight, 0, bubbleHeight - bubbleRadius, bubbleRadius);
+        ctx.lineTo(0, bubbleRadius);
+        ctx.arcTo(0, 0, bubbleRadius, 0, bubbleRadius);
+        ctx.closePath();
+        ctx.fill();
+        
+        await drawAvatar(ctx, commentData.photo, padding, padding, avatarSize, '#F0F0F0');
+        
+        ctx.font = '400 ' + textFontSize + 'px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.fillStyle = '#1A1A1A';
+        commentLines.forEach((line, i) => {
+          ctx.fillText(line, textX, textY + textFontSize + i * textLineHeight);
+        });
+        
+        ctx.font = '400 ' + metaFontSize + 'px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.fillStyle = '#8A8A8A';
+        ctx.fillText('Respondiendo a ' + commentData.username, textX, metaY + metaFontSize);
+        
+        return ctx.canvas.toDataURL('image/png');
+      };
+
+      const drawTikTokComment = async (ctx, commentData) => {
+        const padding = 50;
+        const avatarSize = 120;
+        const gap = 25;
+        const headerFontSize = 52;
+        const headerLineHeight = 62;
+        const textFontSize = 68;
+        const textLineHeight = 82;
+        const maxTextWidth = 680;
+        const bubbleRadius = 40;
+        const arrowWidth = 50;
+        const arrowHeight = 40;
+        
+        ctx.font = '400 ' + headerFontSize + 'px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        const headerLine1 = 'Responde al comentario de';
+        const headerLine2 = commentData.username;
+        const headerBlockHeight = headerLineHeight * 2;
+        
+        ctx.font = '700 ' + textFontSize + 'px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        const commentLines = wrapText(ctx, commentData.comment, maxTextWidth);
+        const textBlockHeight = commentLines.length * textLineHeight;
+        
+        const headerY = padding;
+        const contentY = headerY + headerBlockHeight + 25;
+        const bodyHeight = Math.max(avatarSize, textBlockHeight);
+        
+        const bubbleWidth = padding + avatarSize + gap + maxTextWidth + padding;
+        const bubbleHeight = contentY + bodyHeight + padding;
+        const totalHeight = bubbleHeight + arrowHeight;
+        
+        ctx.canvas.width = bubbleWidth;
+        ctx.canvas.height = totalHeight;
+        ctx.clearRect(0, 0, bubbleWidth, totalHeight);
+        
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath();
+        ctx.moveTo(bubbleRadius, 0);
+        ctx.lineTo(bubbleWidth - bubbleRadius, 0);
+        ctx.arcTo(bubbleWidth, 0, bubbleWidth, bubbleRadius, bubbleRadius);
+        ctx.lineTo(bubbleWidth, bubbleHeight - bubbleRadius);
+        ctx.arcTo(bubbleWidth, bubbleHeight, bubbleWidth - bubbleRadius, bubbleHeight, bubbleRadius);
+        ctx.lineTo(arrowWidth + 20, bubbleHeight);
+        ctx.lineTo(0, bubbleHeight + arrowHeight);
+        ctx.lineTo(0, bubbleRadius);
+        ctx.arcTo(0, 0, bubbleRadius, 0, bubbleRadius);
+        ctx.closePath();
+        ctx.fill();
+        
+        const textX = padding + avatarSize + gap;
+        ctx.font = '400 ' + headerFontSize + 'px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.fillStyle = '#666666';
+        ctx.fillText(headerLine1, textX, headerY + headerFontSize);
+        ctx.fillText(headerLine2, textX, headerY + headerFontSize + headerLineHeight);
+        
+        await drawAvatar(ctx, commentData.photo, padding, contentY, avatarSize, '#E5E5E5');
+        
+        ctx.font = '700 ' + textFontSize + 'px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.fillStyle = '#000000';
+        commentLines.forEach((line, i) => {
+          ctx.fillText(line, textX, contentY + textFontSize + i * textLineHeight);
+        });
+        
+        return ctx.canvas.toDataURL('image/png');
+      };
+
+      const generatePreviews = async () => {
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+        const commentsWithPhotos = assignPhotos();
+        
+        const igResults = [];
+        const ttResults = [];
+        const filenameCounts = {};
+        
+        for (let i = 0; i < commentsWithPhotos.length; i++) {
+          const c = commentsWithPhotos[i];
+          const baseFilename = c.filename || c.username;
+          if (!filenameCounts[baseFilename]) {
+            filenameCounts[baseFilename] = 0;
+          }
+          filenameCounts[baseFilename]++;
+          const finalFilename = baseFilename + '_' + filenameCounts[baseFilename] + '.png';
+          
+          const igDataUrl = await drawInstagramComment(ctx, c);
+          const ttDataUrl = await drawTikTokComment(ctx, c);
+          igResults.push({ username: c.username, dataUrl: igDataUrl, filename: finalFilename });
+          ttResults.push({ username: c.username, dataUrl: ttDataUrl, filename: finalFilename });
+        }
+        
+        setPreviews({ instagram: igResults, tiktok: ttResults });
+      };
+
+      const generateZip = async () => {
+        if (!window.JSZip) {
+          alert('JSZip aún está cargando, intenta de nuevo');
+          return;
+        }
+        
+        setGenerating(true);
+        
+        try {
+          const zip = new window.JSZip();
+          const igFolder = zip.folder('instagram');
+          const ttFolder = zip.folder('tiktok');
+          const canvas = canvasRef.current;
+          const ctx = canvas.getContext('2d');
+          const commentsWithPhotos = assignPhotos();
+          
+          const filenameCounts = {};
+          
+          for (let i = 0; i < commentsWithPhotos.length; i++) {
+            const c = commentsWithPhotos[i];
+            
+            const baseFilename = c.filename || c.username;
+            
+            if (!filenameCounts[baseFilename]) {
+              filenameCounts[baseFilename] = 0;
+            }
+            filenameCounts[baseFilename]++;
+            
+            const finalFilename = baseFilename + '_' + filenameCounts[baseFilename] + '.png';
+            
+            const igDataUrl = await drawInstagramComment(ctx, c);
+            const igBase64 = igDataUrl.split(',')[1];
+            igFolder.file(finalFilename, igBase64, { base64: true });
+            
+            const ttDataUrl = await drawTikTokComment(ctx, c);
+            const ttBase64 = ttDataUrl.split(',')[1];
+            ttFolder.file(finalFilename, ttBase64, { base64: true });
+          }
+          
+          const blob = await zip.generateAsync({ type: 'blob' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'comentarios_' + Date.now() + '.zip';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        } catch (error) {
+          console.error('Error:', error);
+          alert('Error al generar ZIP: ' + error.message);
+        }
+        
+        setGenerating(false);
+      };
+
+      const hasResults = previews.instagram.length > 0 || previews.tiktok.length > 0;
+
+      return (
+        <div className="min-h-screen bg-gray-50 p-8">
+          <div className="max-w-6xl mx-auto">
+            <h1 className="text-3xl font-bold text-center mb-2">Comment Generator</h1>
+            <p className="text-gray-500 text-center mb-8">Genera comentarios de Instagram y TikTok en bulk</p>
+            
+            <div className="bg-white rounded-2xl shadow-sm border p-6 mb-6">
+              <div className="mb-6">
+                <label className="block font-medium mb-2">
+                  Fotos de avatar
+                  <span className="text-gray-400 font-normal ml-2">({photos.length} subidas)</span>
+                </label>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handlePhotosUpload}
+                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-medium file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 cursor-pointer"
+                />
+                {photos.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {photos.map((photo, i) => (
+                      <img key={i} src={photo} alt="" className="w-10 h-10 rounded-full object-cover" />
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              <div className="mb-6">
+                <label className="block font-medium mb-2">
+                  Comentarios
+                  <span className="text-gray-400 font-normal ml-2">({parsedComments.length} detectados)</span>
+                </label>
+                <textarea
+                  value={comments}
+                  onChange={handleCommentsChange}
+                  placeholder="usuario: comentario... | nombre_archivo.MOV"
+                  className="w-full h-40 p-4 border rounded-xl text-sm font-mono resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={generatePreviews}
+                  disabled={parsedComments.length === 0}
+                  className="flex-1 py-3 px-6 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 disabled:opacity-50"
+                >
+                  Vista previa
+                </button>
+                <button
+                  onClick={generateZip}
+                  disabled={parsedComments.length === 0 || generating}
+                  className="flex-1 py-3 px-6 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 disabled:opacity-50"
+                >
+                  {generating ? 'Generando...' : 'Descargar ZIP'}
+                </button>
+              </div>
+            </div>
+            
+            {hasResults && (
+              <div className="bg-white rounded-2xl shadow-sm border p-6">
+                <h2 className="font-medium mb-4">Vista previa ({previews.instagram.length})</h2>
+                
+                {previews.instagram.map((igPreview, i) => (
+                  <div key={i} className="mb-8 last:mb-0">
+                    {i > 0 && <hr className="mb-6 border-gray-200" />}
+                    <p className="text-sm text-gray-400 mb-3 font-mono">{igPreview.filename}</p>
+                    <div className="grid grid-cols-2 gap-6">
+                      <div>
+                        <div className="text-sm font-medium text-gray-500 mb-2 flex items-center gap-2">
+                          <span className="w-3 h-3 rounded-full bg-gradient-to-r from-purple-500 to-pink-500"></span>
+                          Instagram
+                        </div>
+                        <div className="bg-gray-100 rounded-xl p-4 flex items-center justify-center">
+                          <img 
+                            src={igPreview.dataUrl} 
+                            alt={igPreview.username}
+                            className="max-w-full"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <div className="text-sm font-medium text-gray-500 mb-2 flex items-center gap-2">
+                          <span className="w-3 h-3 rounded-full bg-black"></span>
+                          TikTok
+                        </div>
+                        <div className="bg-gray-100 rounded-xl p-4 flex items-center justify-center">
+                          <img 
+                            src={previews.tiktok[i] ? previews.tiktok[i].dataUrl : ''} 
+                            alt={previews.tiktok[i] ? previews.tiktok[i].username : ''}
+                            className="max-w-full"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 ))}
               </div>
             )}
-          </div>
-          
-          <div className="mb-6">
-            <label className="block font-medium mb-2">
-              Comentarios
-              <span className="text-gray-400 font-normal ml-2">({parsedComments.length} detectados)</span>
-            </label>
-            <textarea
-              value={comments}
-              onChange={handleCommentsChange}
-              placeholder={`usuario1: comentario...\nusuario2: comentario...\nusuario3: comentario...`}
-              className="w-full h-40 p-4 border rounded-xl text-sm font-mono resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          
-          <div className="flex gap-3">
-            <button
-              onClick={generatePreviews}
-              disabled={parsedComments.length === 0}
-              className="flex-1 py-3 px-6 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 disabled:opacity-50"
-            >
-              Vista previa
-            </button>
-            <button
-              onClick={generateZip}
-              disabled={parsedComments.length === 0 || generating || !jsZipLoaded}
-              className="flex-1 py-3 px-6 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 disabled:opacity-50"
-            >
-              {generating ? 'Generando...' : !jsZipLoaded ? 'Cargando...' : 'Descargar ZIP'}
-            </button>
+            
+            <canvas ref={canvasRef} className="hidden" />
           </div>
         </div>
-        
-        {/* Vista previa lado a lado */}
-        {hasResults && (
-          <div className="bg-white rounded-2xl shadow-sm border p-6">
-            <h2 className="font-medium mb-4">Vista previa ({previews.instagram.length})</h2>
-            
-            {previews.instagram.map((igPreview, i) => (
-              <div key={i} className="mb-8 last:mb-0">
-                {i > 0 && <hr className="mb-6 border-gray-200" />}
-                <div className="grid grid-cols-2 gap-6">
-                  {/* Instagram */}
-                  <div>
-                    <div className="text-sm font-medium text-gray-500 mb-2 flex items-center gap-2">
-                      <span className="w-3 h-3 rounded-full bg-gradient-to-r from-purple-500 to-pink-500"></span>
-                      Instagram
-                    </div>
-                    <div className="bg-gray-100 rounded-xl p-4 flex items-center justify-center">
-                      <img 
-                        src={igPreview.dataUrl} 
-                        alt={igPreview.username}
-                        className="max-w-full"
-                      />
-                    </div>
-                  </div>
-                  
-                  {/* TikTok */}
-                  <div>
-                    <div className="text-sm font-medium text-gray-500 mb-2 flex items-center gap-2">
-                      <span className="w-3 h-3 rounded-full bg-black"></span>
-                      TikTok
-                    </div>
-                    <div className="bg-gray-100 rounded-xl p-4 flex items-center justify-center">
-                      <img 
-                        src={previews.tiktok[i]?.dataUrl} 
-                        alt={previews.tiktok[i]?.username}
-                        className="max-w-full"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-        
-        <canvas ref={canvasRef} className="hidden" />
-      </div>
-    </div>
-  );
-}
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<CommentGenerator />);
+  </script>
+</body>
+</html>
