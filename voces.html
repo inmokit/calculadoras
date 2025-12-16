@@ -68,8 +68,8 @@
             <textarea id="script" placeholder="Pega tus guiones aquí...
 
 Cada párrafo = un vídeo
-Usa ... para pausas dentro de una frase"></textarea>
-            <div class="hint">💡 Separa cada guion con un salto de línea. Usa <strong>...</strong> para pausas que mantienen la entonación.</div>
+Usa … para pausas dentro de una frase"></textarea>
+            <div class="hint">💡 Separa cada guion con un salto de línea. Usa <strong>…</strong> para pausas que mantienen la entonación.</div>
             
             <div class="section">
                 <div class="voice-info">Voz: <span class="voice-name" id="voiceName">Cargando...</span></div>
@@ -161,7 +161,7 @@ function selectVoice(id,name){cfg.voiceId=id;cfg.voiceName=name;$('voiceName').t
 function parseScript(text){
     var vids=text.split(/\n+/).map(function(v){return v.trim();}).filter(function(v){return v;});
     return vids.map(function(v){
-        return v.split(/\.\.\.|\.\s*/).map(function(s){return s.trim();}).filter(function(s){return s;});
+        return v.split(/\.\.\.|…|\.\s*/).map(function(s){return s.trim();}).filter(function(s){return s;});
     });
 }
 
