@@ -11,7 +11,7 @@
         h1 { text-align: center; font-size: 1.3rem; margin-bottom: 20px; color: #94a3b8; font-weight: 500; }
         .screen { display: none; }
         .screen.active { display: block; }
-        textarea { width: 100%; height: 220px; padding: 16px; border: 1px solid #334155; border-radius: 12px; background: #1e293b; color: #fff; font-size: 16px; resize: none; margin-bottom: 16px; }
+        textarea { width: 100%; height: 200px; padding: 16px; border: 1px solid #334155; border-radius: 12px; background: #1e293b; color: #fff; font-size: 16px; resize: none; margin-bottom: 16px; }
         textarea:focus { outline: none; border-color: #ec4899; }
         textarea::placeholder { color: #64748b; }
         .hint { font-size: 0.75rem; color: #64748b; margin-bottom: 16px; line-height: 1.4; }
@@ -78,10 +78,16 @@ Usa ... para pausas dentro de una frase"></textarea>
             </div>
             
             <div class="section">
-                <div class="section-title">Ajustes</div>
-                <div class="row"><label>Velocidad</label><input type="range" id="speed" min="0.7" max="1.2" step="0.05" value="0.9"><span class="val" id="speedVal">0.9x</span></div>
-                <div class="row"><label>Repeticiones</label><input type="range" id="reps" min="1" max="3" step="1" value="1"><span class="val" id="repsVal">1</span></div>
-                <div class="row"><label>Pausa (×duración)</label><input type="range" id="mult" min="0.5" max="2" step="0.25" value="1"><span class="val" id="multVal">1x</span></div>
+                <div class="section-title">Configuración</div>
+                <div class="row"><label>Velocidad</label><input type="range" id="speed" min="0.5" max="1.5" step="0.1" value="1"><span class="val" id="speedVal">1x</span></div>
+                <div class="row"><label>Estabilidad</label><input type="range" id="stability" min="0" max="1" step="0.1" value="0.2"><span class="val" id="stabilityVal">0.2</span></div>
+                <div class="row"><label>Expresividad</label><input type="range" id="similarity" min="0" max="1" step="0.1" value="0.5"><span class="val" id="similarityVal">0.5</span></div>
+                <div class="row"><label>Repeticiones</label><input type="range" id="reps" min="1" max="5" step="1" value="1"><span class="val" id="repsVal">1</span></div>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">Pausas</div>
+                <div class="row"><label>Multiplicador</label><input type="range" id="mult" min="0.5" max="3" step="0.25" value="1"><span class="val" id="multVal">1x</span></div>
             </div>
             
             <button id="btnStart" class="btn-start" disabled>Empezar sesión</button>
@@ -116,13 +122,12 @@ Usa ... para pausas dentro de una frase"></textarea>
 const API_BASE = 'https://elevenlabs-proxy.ajnietoc.workers.dev';
 
 let voices=[],videos=[],phrases=[],idx=0,rep=0,videoIdx=0,playing=false,paused=false,audio=null,timeout=null,lastDur=0,cache={};
-let cfg={speed:0.9,stability:0.85,similarity:0.55,reps:1,mult:1,voiceId:null,voiceName:''};
+let cfg={speed:1,stability:0.2,similarity:0.5,reps:1,mult:1,voiceId:null,voiceName:''};
 
 const $=id=>document.getElementById(id);
 const showErr=m=>{$('error').textContent=m;$('error').style.display='block';};
 const hideErr=()=>$('error').style.display='none';
 
-// Beep sound
 function playBeep(){
     const ctx=new(window.AudioContext||window.webkitAudioContext)();
     const o=ctx.createOscillator();
@@ -154,16 +159,14 @@ async function loadVoices(){
 function selectVoice(id,name){cfg.voiceId=id;cfg.voiceName=name;$('voiceName').textContent=name;checkStart();}
 
 function parseScript(text){
-    // Separar por saltos de línea = videos
     var vids=text.split(/\n+/).map(function(v){return v.trim();}).filter(function(v){return v;});
     return vids.map(function(v){
-        // Cada video: separar por . o ... (pero mantener ... como frase aparte para entonación)
-        return v.split(/\.(?:\.\.)?(?:\s|$)/).map(function(s){return s.trim();}).filter(function(s){return s;});
+        return v.split(/\.\.\.|\.\s*/).map(function(s){return s.trim();}).filter(function(s){return s;});
     });
 }
 
 async function genSpeech(text){
-    const key=cfg.voiceId+'-'+text+'-'+cfg.speed;
+    const key=cfg.voiceId+'-'+text+'-'+cfg.speed+'-'+cfg.stability+'-'+cfg.similarity;
     if(cache[key])return cache[key];
     const r=await fetch(API_BASE+'/text-to-speech/'+cfg.voiceId,{
         method:'POST',
@@ -189,8 +192,6 @@ function updateUI(){
     $('phraseText').textContent=phrases[idx]||'';
     $('progressFill').style.width=((idx+1)/phrases.length*100)+'%';
     $('repInd').textContent=cfg.reps>1?'Rep '+(rep+1)+'/'+cfg.reps:'';
-    
-    // Video dots
     var dots='';
     for(var i=0;i<videos.length;i++){
         if(i<videoIdx)dots+='<div class="video-dot done"></div>';
@@ -228,7 +229,6 @@ async function playPhrase(){
                 setStatus('waiting');
                 timeout=setTimeout(function(){idx++;playPhrase();},lastDur*cfg.mult*1000);
             }else{
-                // Video terminado
                 playing=false;
                 if(videoIdx<videos.length-1){
                     showNextVideoButton();
@@ -261,6 +261,8 @@ function checkStart(){$('btnStart').disabled=!($('script').value.trim()&&cfg.voi
 $('script').addEventListener('input',checkStart);
 $('voiceSelect').addEventListener('change',function(e){var v=voices.find(x=>x.voice_id===e.target.value);if(v)selectVoice(v.voice_id,v.name);});
 $('speed').addEventListener('input',function(e){cfg.speed=parseFloat(e.target.value);$('speedVal').textContent=cfg.speed+'x';});
+$('stability').addEventListener('input',function(e){cfg.stability=parseFloat(e.target.value);$('stabilityVal').textContent=cfg.stability;});
+$('similarity').addEventListener('input',function(e){cfg.similarity=parseFloat(e.target.value);$('similarityVal').textContent=cfg.similarity;});
 $('reps').addEventListener('input',function(e){cfg.reps=parseInt(e.target.value);$('repsVal').textContent=cfg.reps;});
 $('mult').addEventListener('input',function(e){cfg.mult=parseFloat(e.target.value);$('multVal').textContent=cfg.mult+'x';});
 
@@ -279,26 +281,13 @@ $('btnStart').addEventListener('click',function(){
 });
 
 $('btnNextVideo').addEventListener('click',function(){
-    if(videoIdx<videos.length-1){
-        startVideo(videoIdx+1);
-    }
+    if(videoIdx<videos.length-1){startVideo(videoIdx+1);}
 });
 
 $('btnPlayPause').addEventListener('click',function(){
-    if(!playing){
-        startVideo(videoIdx);
-    }else if(paused){
-        paused=false;
-        $('ppText').textContent='Pausar';
-        $('btnPlayPause').querySelector('.icon').textContent='⏸';
-        playPhrase();
-    }else{
-        paused=true;
-        stopAudio();
-        setStatus('paused');
-        $('ppText').textContent='Continuar';
-        $('btnPlayPause').querySelector('.icon').textContent='▶';
-    }
+    if(!playing){startVideo(videoIdx);}
+    else if(paused){paused=false;$('ppText').textContent='Pausar';$('btnPlayPause').querySelector('.icon').textContent='⏸';playPhrase();}
+    else{paused=true;stopAudio();setStatus('paused');$('ppText').textContent='Continuar';$('btnPlayPause').querySelector('.icon').textContent='▶';}
 });
 
 $('btnPrev').addEventListener('click',function(){stopAudio();idx=Math.max(0,idx-1);rep=0;updateUI();if(playing&&!paused)playPhrase();});
