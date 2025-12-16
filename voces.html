@@ -11,7 +11,7 @@
         h1 { text-align: center; font-size: 1.3rem; margin-bottom: 20px; color: #94a3b8; font-weight: 500; }
         .screen { display: none; }
         .screen.active { display: block; }
-        textarea { width: 100%; height: 200px; padding: 16px; border: 1px solid #334155; border-radius: 12px; background: #1e293b; color: #fff; font-size: 16px; resize: none; margin-bottom: 12px; }
+        textarea { width: 100%; height: 180px; padding: 16px; border: 1px solid #334155; border-radius: 12px; background: #1e293b; color: #fff; font-size: 16px; resize: none; margin-bottom: 12px; }
         textarea:focus { outline: none; border-color: #ec4899; }
         textarea::placeholder { color: #64748b; }
         .hint { font-size: 0.75rem; color: #64748b; margin-bottom: 16px; line-height: 1.4; }
@@ -27,11 +27,14 @@
         .row-input input[type="text"]:focus { outline: none; border-color: #ec4899; }
         .row-input input[type="text"]::placeholder { color: #64748b; }
         select { width: 100%; padding: 12px; border-radius: 8px; border: none; background: #0f172a; color: #fff; font-size: 0.9rem; }
-        .btn-start { width: 100%; padding: 16px; font-size: 1rem; font-weight: 600; border: none; border-radius: 12px; background: linear-gradient(135deg, #ec4899, #be185d); color: #fff; cursor: pointer; }
+        .btn-start { width: 100%; padding: 16px; font-size: 1rem; font-weight: 600; border: none; border-radius: 12px; background: linear-gradient(135deg, #ec4899, #be185d); color: #fff; cursor: pointer; margin-bottom: 10px; }
         .btn-start:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+        .btn-ia { width: 100%; padding: 14px; font-size: 0.95rem; font-weight: 600; border: none; border-radius: 12px; background: linear-gradient(135deg, #8b5cf6, #6d28d9); color: #fff; cursor: pointer; margin-bottom: 10px; }
+        .btn-ia:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
         .btn-preview { width: 100%; padding: 10px; border: 1px solid #334155; border-radius: 8px; background: transparent; color: #ec4899; cursor: pointer; font-size: 0.8rem; margin-top: 8px; }
         .btn-preview:disabled { opacity: 0.5; }
         .error { background: #450a0a; border: 1px solid #dc2626; border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 0.85rem; }
+        .success { background: #052e16; border: 1px solid #22c55e; border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 0.85rem; }
         .voice-info { font-size: 0.85rem; color: #94a3b8; margin-bottom: 8px; }
         .voice-name { color: #ec4899; font-weight: 600; }
         .phrase-box { background: #1e293b; border-radius: 16px; padding: 30px 20px; min-height: 160px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; margin-bottom: 20px; }
@@ -46,6 +49,7 @@
         .status-dot.paused { background: #ec4899; }
         .status-dot.loading { background: #60a5fa; animation: pulse 0.5s infinite; }
         .status-dot.finished { background: #ec4899; }
+        .status-dot.generating { background: #8b5cf6; animation: pulse 0.5s infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         .progress { height: 3px; background: #334155; border-radius: 2px; margin-bottom: 24px; overflow: hidden; }
         .progress-fill { height: 100%; background: #ec4899; transition: width 0.3s; }
@@ -62,6 +66,11 @@
         .video-dot { width: 10px; height: 10px; border-radius: 50%; background: #334155; }
         .video-dot.done { background: #22c55e; }
         .video-dot.current { background: #ec4899; animation: pulse 1s infinite; }
+        .loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; }
+        .loading-overlay h2 { margin-bottom: 20px; font-size: 1.2rem; }
+        .loading-overlay p { color: #64748b; font-size: 0.9rem; margin-bottom: 10px; }
+        .loading-bar { width: 200px; height: 6px; background: #334155; border-radius: 3px; overflow: hidden; }
+        .loading-bar-fill { height: 100%; background: #ec4899; transition: width 0.3s; }
     </style>
 </head>
 <body>
@@ -69,6 +78,7 @@
         <div id="setup" class="screen active">
             <h1>🎧 Teleprompter Auditivo</h1>
             <div id="error" class="error" style="display:none"></div>
+            <div id="success" class="success" style="display:none"></div>
             
             <div class="section">
                 <div class="section-title">Datos del vídeo</div>
@@ -78,11 +88,12 @@
                 </div>
             </div>
             
-            <textarea id="script" placeholder="Pega tus guiones aquí...
+            <textarea id="script" placeholder="Pega tu guion en bruto aquí...
 
-Usa [inmobiliaria] y [ciudad] como variables.
-Cada párrafo = un vídeo"></textarea>
-            <div class="hint">💡 Separa cada guion con un salto de línea. Usa <strong>…</strong> para forzar pausas. Las frases largas se parten automáticamente en comas.</div>
+Luego pulsa 'Procesar con IA' para optimizarlo automáticamente."></textarea>
+            <div class="hint">💡 Pega el guion de Gemini tal cual. Claude lo optimizará: mejora redacción, corta frases, decide repeticiones.</div>
+            
+            <button id="btnIA" class="btn-ia" disabled>✨ Procesar con IA</button>
             
             <div class="section">
                 <div class="voice-info">Voz: <span class="voice-name" id="voiceName">Cargando...</span></div>
@@ -95,15 +106,14 @@ Cada párrafo = un vídeo"></textarea>
                 <div class="row"><label>Velocidad</label><input type="range" id="speed" min="0.5" max="1.5" step="0.1" value="1"><span class="val" id="speedVal">1x</span></div>
                 <div class="row"><label>Estabilidad</label><input type="range" id="stability" min="0" max="1" step="0.1" value="0.2"><span class="val" id="stabilityVal">0.2</span></div>
                 <div class="row"><label>Expresividad</label><input type="range" id="similarity" min="0" max="1" step="0.1" value="0.5"><span class="val" id="similarityVal">0.5</span></div>
-                <div class="row"><label>Repeticiones</label><input type="range" id="reps" min="1" max="5" step="1" value="1"><span class="val" id="repsVal">1</span></div>
             </div>
             
             <div class="section">
-                <div class="section-title">Pausas</div>
+                <div class="section-title">Pausas entre frases</div>
                 <div class="row"><label>Multiplicador</label><input type="range" id="mult" min="0.5" max="3" step="0.25" value="1"><span class="val" id="multVal">1x</span></div>
             </div>
             
-            <button id="btnStart" class="btn-start" disabled>Empezar sesión</button>
+            <button id="btnStart" class="btn-start" disabled>▶ Preparar y empezar</button>
         </div>
         
         <div id="player" class="screen">
@@ -130,16 +140,25 @@ Cada párrafo = un vídeo"></textarea>
             
             <button class="btn-back" id="btnBack">← Volver</button>
         </div>
+        
+        <div id="loadingOverlay" class="loading-overlay" style="display:none">
+            <h2 id="loadingTitle">Procesando...</h2>
+            <p id="loadingText">Preparando guion...</p>
+            <div class="loading-bar"><div class="loading-bar-fill" id="loadingBar"></div></div>
+        </div>
     </div>
 <script>
-const API_BASE = 'https://elevenlabs-proxy.ajnietoc.workers.dev';
+const API_ELEVENLABS = 'https://elevenlabs-proxy.ajnietoc.workers.dev';
+const API_CLAUDE = 'https://claude-guiones.ajnietoc.workers.dev';
 
-let voices=[],videos=[],phrases=[],idx=0,rep=0,videoIdx=0,playing=false,paused=false,audio=null,timeout=null,lastDur=0,cache={};
-let cfg={speed:1,stability:0.2,similarity:0.5,reps:1,mult:1,voiceId:null,voiceName:''};
+let voices=[],videos=[],phrases=[],phraseReps=[],idx=0,rep=0,videoIdx=0,playing=false,paused=false,audio=null,timeout=null,lastDur=0,cache={};
+let cfg={speed:1,stability:0.2,similarity:0.5,mult:1,voiceId:null,voiceName:''};
+let guionProcesado=false;
 
 const $=id=>document.getElementById(id);
-const showErr=m=>{$('error').textContent=m;$('error').style.display='block';};
+const showErr=m=>{$('error').textContent=m;$('error').style.display='block';$('success').style.display='none';};
 const hideErr=()=>$('error').style.display='none';
+const showSuccess=m=>{$('success').textContent=m;$('success').style.display='block';$('error').style.display='none';};
 
 function playBeep(){
     const ctx=new(window.AudioContext||window.webkitAudioContext)();
@@ -154,9 +173,17 @@ function playBeep(){
     o.stop(ctx.currentTime+0.5);
 }
 
+function showLoading(title,text,progress){
+    $('loadingOverlay').style.display='flex';
+    $('loadingTitle').textContent=title;
+    $('loadingText').textContent=text;
+    $('loadingBar').style.width=progress+'%';
+}
+function hideLoading(){$('loadingOverlay').style.display='none';}
+
 async function loadVoices(){
     try{
-        const r=await fetch(API_BASE+'/voices');
+        const r=await fetch(API_ELEVENLABS+'/voices');
         if(!r.ok)throw new Error();
         const d=await r.json();
         voices=d.voices;
@@ -169,100 +196,88 @@ async function loadVoices(){
     }catch(e){$('voiceName').textContent='Error';showErr('No se pudieron cargar las voces');}
 }
 
-function selectVoice(id,name){cfg.voiceId=id;cfg.voiceName=name;$('voiceName').textContent=name;checkStart();}
+function selectVoice(id,name){cfg.voiceId=id;cfg.voiceName=name;$('voiceName').textContent=name;checkButtons();}
 
-function replaceVariables(text){
-    var inmo=$('inmobiliaria').value.trim()||'[inmobiliaria]';
-    var city=$('ciudad').value.trim()||'[ciudad]';
-    return text.replace(/\[inmobiliaria\]/gi,inmo).replace(/\[ciudad\]/gi,city);
+function checkButtons(){
+    $('btnIA').disabled=!$('script').value.trim();
+    $('btnStart').disabled=!($('script').value.trim()&&cfg.voiceId&&guionProcesado);
 }
 
-function splitLongPhrase(text){
-    var minLen=80;
-    var maxLen=100;
-    if(text.length<=maxLen)return [text];
+async function procesarConIA(){
+    var guion=$('script').value.trim();
+    if(!guion)return;
     
-    var parts=[];
-    var remaining=text;
+    showLoading('✨ Procesando con IA','Claude está optimizando tu guion...',30);
+    $('btnIA').disabled=true;
     
-    while(remaining.length>maxLen){
-        var cutPoint=-1;
+    try{
+        const r=await fetch(API_CLAUDE,{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({
+                guion:guion,
+                inmobiliaria:$('inmobiliaria').value.trim(),
+                ciudad:$('ciudad').value.trim()
+            })
+        });
         
-        // 1. Buscar coma entre minLen y maxLen
-        for(var i=maxLen;i>=minLen;i--){
-            if(remaining[i]===','){
-                cutPoint=i+1;
-                break;
+        if(!r.ok)throw new Error('Error en la API');
+        const d=await r.json();
+        if(d.error)throw new Error(d.error);
+        
+        $('script').value=d.guion;
+        guionProcesado=true;
+        hideLoading();
+        showSuccess('✓ Guion optimizado. Revísalo y pulsa "Preparar y empezar".');
+        checkButtons();
+    }catch(e){
+        hideLoading();
+        showErr('Error procesando: '+e.message);
+        $('btnIA').disabled=false;
+    }
+}
+
+function parseGuionProcesado(text){
+    var lines=text.split('\n').map(function(l){return l.trim();}).filter(function(l){return l;});
+    var vids=[];
+    var currentVideo=[];
+    var currentReps=[];
+    
+    for(var i=0;i<lines.length;i++){
+        var line=lines[i];
+        
+        // Detectar separador de video
+        if(line==='---'||line==='***'){
+            if(currentVideo.length>0){
+                vids.push({phrases:currentVideo,reps:currentReps});
+                currentVideo=[];
+                currentReps=[];
             }
+            continue;
         }
         
-        // 2. Si no hay coma en rango, buscar coma antes de minLen (la más cercana a minLen)
-        if(cutPoint===-1){
-            for(var i=minLen-1;i>=40;i--){
-                if(remaining[i]===','){
-                    cutPoint=i+1;
-                    break;
-                }
-            }
+        // Parsear [1x] o [2x]
+        var match=line.match(/^\[(\d)x\]\s*(.+)$/);
+        if(match){
+            currentReps.push(parseInt(match[1]));
+            currentVideo.push(match[2]);
+        }else if(line){
+            currentReps.push(1);
+            currentVideo.push(line);
         }
-        
-        // 3. Si no hay coma, buscar conjunciones en el rango
-        if(cutPoint===-1){
-            var patterns=[' y ',' pero ',' que ',' aunque ',' porque ',' cuando ',' donde ',' como '];
-            for(var i=maxLen;i>=minLen;i--){
-                for(var p=0;p<patterns.length;p++){
-                    var pat=patterns[p];
-                    if(remaining.substring(i-pat.length,i)===pat){
-                        cutPoint=i-pat.length+1;
-                        break;
-                    }
-                }
-                if(cutPoint!==-1)break;
-            }
-        }
-        
-        // 4. Si nada, buscar espacio más cercano a maxLen
-        if(cutPoint===-1){
-            for(var i=maxLen;i>=minLen;i--){
-                if(remaining[i]===' '){
-                    cutPoint=i;
-                    break;
-                }
-            }
-        }
-        
-        // 5. Si nada, forzar corte en maxLen
-        if(cutPoint===-1)cutPoint=maxLen;
-        
-        parts.push(remaining.substring(0,cutPoint).trim());
-        remaining=remaining.substring(cutPoint).trim();
     }
     
-    if(remaining.length>0)parts.push(remaining);
-    return parts;
-}
-
-function parseScript(text){
-    text=replaceVariables(text);
-    var vids=text.split(/\n+/).map(function(v){return v.trim();}).filter(function(v){return v;});
+    if(currentVideo.length>0){
+        vids.push({phrases:currentVideo,reps:currentReps});
+    }
     
-    return vids.map(function(v){
-        var rawPhrases=v.split(/\.\.\.|…|\.\s*/).map(function(s){return s.trim();}).filter(function(s){return s;});
-        var finalPhrases=[];
-        for(var i=0;i<rawPhrases.length;i++){
-            var split=splitLongPhrase(rawPhrases[i]);
-            for(var j=0;j<split.length;j++){
-                finalPhrases.push(split[j]);
-            }
-        }
-        return finalPhrases;
-    });
+    return vids;
 }
 
 async function genSpeech(text){
     const key=cfg.voiceId+'-'+text+'-'+cfg.speed+'-'+cfg.stability+'-'+cfg.similarity;
     if(cache[key])return cache[key];
-    const r=await fetch(API_BASE+'/text-to-speech/'+cfg.voiceId,{
+    const r=await fetch(API_ELEVENLABS+'/text-to-speech/'+cfg.voiceId,{
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({text:text,model_id:'eleven_multilingual_v2',voice_settings:{stability:cfg.stability,similarity_boost:cfg.similarity,speed:cfg.speed}})
@@ -273,11 +288,25 @@ async function genSpeech(text){
     return cache[key];
 }
 
+async function preGenerarTodo(){
+    var allPhrases=[];
+    for(var v=0;v<videos.length;v++){
+        for(var p=0;p<videos[v].phrases.length;p++){
+            allPhrases.push(videos[v].phrases[p]);
+        }
+    }
+    
+    for(var i=0;i<allPhrases.length;i++){
+        showLoading('🔊 Generando audio','Frase '+(i+1)+' de '+allPhrases.length,Math.round((i+1)/allPhrases.length*100));
+        await genSpeech(allPhrases[i]);
+    }
+}
+
 function stopAudio(){if(audio){audio.pause();audio=null;}if(timeout){clearTimeout(timeout);timeout=null;}}
 
 function setStatus(s){
     $('statusDot').className='status-dot '+s;
-    $('statusText').textContent=s==='speaking'?'Dictando...':s==='waiting'?'Tu turno':s==='paused'?'Pausa':s==='loading'?'Generando...':s==='finished'?'¡Vídeo terminado!':'Listo';
+    $('statusText').textContent=s==='speaking'?'Dictando...':s==='waiting'?'Tu turno':s==='paused'?'Pausa':s==='loading'?'Cargando...':s==='finished'?'¡Vídeo terminado!':'Listo';
 }
 
 function updateUI(){
@@ -285,7 +314,8 @@ function updateUI(){
     $('counter').textContent=(idx+1)+' / '+phrases.length;
     $('phraseText').textContent=phrases[idx]||'';
     $('progressFill').style.width=((idx+1)/phrases.length*100)+'%';
-    $('repInd').textContent=cfg.reps>1?'Rep '+(rep+1)+'/'+cfg.reps:'';
+    var maxRep=phraseReps[idx]||1;
+    $('repInd').textContent=maxRep>1?'Rep '+(rep+1)+'/'+maxRep:'';
     var dots='';
     for(var i=0;i<videos.length;i++){
         if(i<videoIdx)dots+='<div class="video-dot done"></div>';
@@ -309,7 +339,7 @@ function hideNextVideoButton(){
 
 async function playPhrase(){
     if(!playing||paused||idx>=phrases.length)return;
-    updateUI();setStatus('loading');
+    updateUI();setStatus('speaking');
     try{
         const url=await genSpeech(phrases[idx]);
         audio=new Audio(url);
@@ -317,7 +347,12 @@ async function playPhrase(){
         audio.onended=function(){
             lastDur=(Date.now()-start)/1000;
             rep++;
-            if(rep<cfg.reps){timeout=setTimeout(playPhrase,400);return;}
+            var maxRep=phraseReps[idx]||1;
+            if(rep<maxRep){
+                updateUI();
+                timeout=setTimeout(playPhrase,400);
+                return;
+            }
             rep=0;
             if(idx<phrases.length-1){
                 setStatus('waiting');
@@ -334,13 +369,14 @@ async function playPhrase(){
                 }
             }
         };
-        setStatus('speaking');audio.play();
+        audio.play();
     }catch(e){showErr(e.message);playing=false;}
 }
 
 function startVideo(vIdx){
     videoIdx=vIdx;
-    phrases=videos[videoIdx];
+    phrases=videos[videoIdx].phrases;
+    phraseReps=videos[videoIdx].reps;
     idx=0;rep=0;
     hideNextVideoButton();
     updateUI();
@@ -350,15 +386,14 @@ function startVideo(vIdx){
     playPhrase();
 }
 
-function checkStart(){$('btnStart').disabled=!($('script').value.trim()&&cfg.voiceId);}
-
-$('script').addEventListener('input',checkStart);
+$('script').addEventListener('input',function(){guionProcesado=false;checkButtons();});
 $('voiceSelect').addEventListener('change',function(e){var v=voices.find(x=>x.voice_id===e.target.value);if(v)selectVoice(v.voice_id,v.name);});
 $('speed').addEventListener('input',function(e){cfg.speed=parseFloat(e.target.value);$('speedVal').textContent=cfg.speed+'x';});
 $('stability').addEventListener('input',function(e){cfg.stability=parseFloat(e.target.value);$('stabilityVal').textContent=cfg.stability;});
 $('similarity').addEventListener('input',function(e){cfg.similarity=parseFloat(e.target.value);$('similarityVal').textContent=cfg.similarity;});
-$('reps').addEventListener('input',function(e){cfg.reps=parseInt(e.target.value);$('repsVal').textContent=cfg.reps;});
 $('mult').addEventListener('input',function(e){cfg.mult=parseFloat(e.target.value);$('multVal').textContent=cfg.mult+'x';});
+
+$('btnIA').addEventListener('click',procesarConIA);
 
 $('btnPreview').addEventListener('click',async function(){
     $('btnPreview').disabled=true;$('btnPreview').textContent='Generando...';
@@ -366,12 +401,22 @@ $('btnPreview').addEventListener('click',async function(){
     catch(e){showErr(e.message);$('btnPreview').disabled=false;$('btnPreview').textContent='🔊 Escuchar voz';}
 });
 
-$('btnStart').addEventListener('click',function(){
-    videos=parseScript($('script').value);
-    if(!videos.length||!videos[0].length){showErr('No hay guiones');return;}
+$('btnStart').addEventListener('click',async function(){
+    videos=parseGuionProcesado($('script').value);
+    if(!videos.length||!videos[0].phrases.length){showErr('No hay guiones');return;}
     cache={};hideErr();
-    $('setup').classList.remove('active');$('player').classList.add('active');
-    startVideo(0);
+    
+    // Pre-generar todo
+    try{
+        await preGenerarTodo();
+        hideLoading();
+        $('setup').classList.remove('active');
+        $('player').classList.add('active');
+        startVideo(0);
+    }catch(e){
+        hideLoading();
+        showErr('Error generando audio: '+e.message);
+    }
 });
 
 $('btnNextVideo').addEventListener('click',function(){
