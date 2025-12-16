@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Teleprompter Auditivo Pro</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #fff; min-height: 100vh; padding: 16px; }
+        .container { max-width: 500px; margin: 0 auto; }
+        h1 { text-align: center; font-size: 1.5rem; margin-bottom: 24px; }
+        .badge { font-size: 0.65rem; background: #22c55e; color: #000; padding: 2px 8px; border-radius: 4px; margin-left: 8px; vertical-align: middle; }
+        .screen { display: none; }
+        .screen.active { display: block; }
+        textarea { width: 100%; height: 180px; padding: 16px; border: 2px solid #334155; border-radius: 12px; background: #1e293b; color: #fff; font-size: 16px; resize: vertical; margin-bottom: 16px; }
+        textarea:focus { outline: none; border-color: #ec4899; }
+        .section { background: #1e293b; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+        .section h3 { font-size: 0.75rem; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .row:last-child { margin-bottom: 0; }
+        .row label { font-size: 0.9rem; }
+        .row input[type="range"] { width: 100px; accent-color: #ec4899; }
+        .row .val { min-width: 45px; text-align: right; color: #ec4899; font-weight: bold; }
+        select { width: 100%; padding: 12px; border-radius: 8px; border: none; background: #0f172a; color: #fff; font-size: 0.95rem; margin-bottom: 8px; }
+        .btn-preview { width: 100%; padding: 10px; border: 1px solid #475569; border-radius: 8px; background: transparent; color: #ec4899; cursor: pointer; font-size: 0.85rem; }
+        .btn-preview:disabled { opacity: 0.5; }
+        .btn-start { width: 100%; padding: 18px; font-size: 1.1rem; font-weight: bold; border: none; border-radius: 12px; background: linear-gradient(135deg, #ec4899, #be185d); color: #fff; cursor: pointer; }
+        .btn-start:disabled { background: #475569; cursor: not-allowed; }
+        .error { background: #450a0a; border: 1px solid #dc2626; border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 0.85rem; }
+        .quota { text-align: center; color: #64748b; font-size: 0.8rem; margin-top: 16px; }
+        .phrase-box { background: #1e293b; border-radius: 16px; padding: 24px; min-height: 140px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; margin-bottom: 16px; }
+        .phrase-counter { font-size: 0.85rem; color: #64748b; margin-bottom: 8px; }
+        .phrase-text { font-size: 1.25rem; line-height: 1.5; }
+        .rep-indicator { font-size: 0.8rem; color: #ec4899; margin-top: 8px; }
+        .status-bar { display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 16px; font-size: 0.85rem; color: #64748b; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #475569; }
+        .status-dot.speaking { background: #4ade80; animation: pulse 1s infinite; }
+        .status-dot.waiting { background: #fbbf24; }
+        .status-dot.paused { background: #ec4899; }
+        .status-dot.loading { background: #60a5fa; animation: pulse 0.5s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .progress { height: 4px; background: #334155; border-radius: 2px; margin-bottom: 20px; overflow: hidden; }
+        .progress-fill { height: 100%; background: #ec4899; transition: width 0.3s; }
+        .controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+        .btn-ctrl { padding: 18px 8px; border: none; border-radius: 12px; background: #1e293b; color: #fff; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 0.8rem; }
+        .btn-ctrl:active { transform: scale(0.95); }
+        .btn-ctrl .icon { font-size: 1.4rem; }
+        .btn-ctrl.primary { background: linear-gradient(135deg, #ec4899, #be185d); grid-column: span 3; padding: 22px; font-size: 1rem; }
+        .btn-ctrl.primary .icon { font-size: 1.8rem; }
+        .btn-back { width: 100%; padding: 14px; border: 2px solid #334155; border-radius: 12px; background: transparent; color: #64748b; cursor: pointer; font-size: 0.95rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="setup" class="screen active">
+            <h1>🎧 Teleprompter Auditivo<span class="badge">PRO</span></h1>
+            <div id="error" class="error" style="display:none"></div>
+            <textarea id="script" placeholder="Pega aquí tu guion. Las frases se separarán por puntos."></textarea>
+            <div class="section">
+                <h3>Voz ElevenLabs</h3>
+                <div id="voiceLoading">Cargando voces...</div>
+                <select id="voiceSelect" style="display:none"></select>
+                <button id="btnPreview" class="btn-preview" style="display:none" disabled>🔊 Escuchar preview</button>
+            </div>
+            <div class="section">
+                <h3>Configuración</h3>
+                <div class="row"><label>Velocidad</label><input type="range" id="speed" min="0.5" max="1.5" step="0.1" value="1"><span class="val" id="speedVal">1x</span></div>
+                <div class="row"><label>Estabilidad</label><input type="range" id="stability" min="0" max="1" step="0.1" value="0.5"><span class="val" id="stabilityVal">0.5</span></div>
+                <div class="row"><label>Expresividad</label><input type="range" id="similarity" min="0" max="1" step="0.1" value="0.75"><span class="val" id="similarityVal">0.75</span></div>
+                <div class="row"><label>Repeticiones</label><input type="range" id="reps" min="1" max="5" step="1" value="1"><span class="val" id="repsVal">1</span></div>
+            </div>
+            <div class="section">
+                <h3>Pausas</h3>
+                <select id="pauseType"><option value="proportional">Proporcional</option><option value="fixed">Fija</option></select>
+                <div id="propOpts" class="row"><label>Multiplicador</label><input type="range" id="mult" min="0.5" max="3" step="0.25" value="1"><span class="val" id="multVal">1x</span></div>
+                <div id="fixedOpts" class="row" style="display:none"><label>Segundos</label><input type="range" id="fixedSec" min="1" max="15" step="0.5" value="5"><span class="val" id="fixedVal">5s</span></div>
+            </div>
+            <button id="btnStart" class="btn-start" disabled>▶️ Empezar</button>
+            <div id="quota" class="quota"></div>
+        </div>
+        <div id="player" class="screen">
+            <div class="phrase-box">
+                <div class="phrase-counter" id="counter">Frase 1 de 1</div>
+                <div class="phrase-text" id="phraseText"></div>
+                <div class="rep-indicator" id="repInd"></div>
+            </div>
+            <div class="status-bar"><div class="status-dot" id="statusDot"></div><span id="statusText">Listo</span></div>
+            <div class="progress"><div class="progress-fill" id="progressFill"></div></div>
+            <div class="controls">
+                <button class="btn-ctrl" id="btnPrev"><span class="icon">⏮️</span>Anterior</button>
+                <button class="btn-ctrl" id="btnRepeat"><span class="icon">🔄</span>Repetir</button>
+                <button class="btn-ctrl" id="btnNext"><span class="icon">⏭️</span>Siguiente</button>
+                <button class="btn-ctrl primary" id="btnPlayPause"><span class="icon">⏸️</span><span id="ppText">Pausar</span></button>
+            </div>
+            <button class="btn-back" id="btnBack">← Volver al guion</button>
+        </div>
+    </div>
+<script>
+const API_KEY='sk_8a51f2341c0b883eff32b2819295f30c690c58b8c239f439';
+let voices=[],phrases=[],idx=0,rep=0,playing=false,paused=false,audio=null,timeout=null,lastDur=0,cache={};
+let cfg={speed:1,stability:0.5,similarity:0.75,reps:1,pauseType:'proportional',mult:1,fixed:5,voiceId:null};
+
+const $=id=>document.getElementById(id);
+const showErr=m=>{$('error').textContent=m;$('error').style.display='block';};
+const hideErr=()=>$('error').style.display='none';
+
+async function loadVoices(){
+    try{
+        const r=await fetch('https://api.elevenlabs.io/v1/voices',{headers:{'xi-api-key':API_KEY}});
+        if(!r.ok)throw new Error();
+        const d=await r.json();
+        voices=d.voices.sort((a,b)=>{
+            const aEs=a.labels?.language==='es'||a.name.toLowerCase().includes('spanish');
+            const bEs=b.labels?.language==='es'||b.name.toLowerCase().includes('spanish');
+            if(aEs&&!bEs)return -1;if(!aEs&&bEs)return 1;return a.name.localeCompare(b.name);
+        });
+        $('voiceSelect').innerHTML=voices.map(v=>`<option value="${v.voice_id}">${v.name}${v.labels?.language?' ('+v.labels.language+')':''}</option>`).join('');
+        cfg.voiceId=voices[0]?.voice_id;
+        $('voiceLoading').style.display='none';
+        $('voiceSelect').style.display='block';
+        $('btnPreview').style.display='block';
+        $('btnPreview').disabled=false;
+        checkStart();
+    }catch(e){$('voiceLoading').textContent='Error cargando voces';showErr('No se pudieron cargar las voces');}
+}
+
+async function loadQuota(){
+    try{
+        const r=await fetch('https://api.elevenlabs.io/v1/user/subscription',{headers:{'xi-api-key':API_KEY}});
+        if(r.ok){const d=await r.json();$('quota').textContent=`Caracteres: ${(d.character_limit-d.character_count).toLocaleString()} disponibles`;}
+    }catch(e){}
+}
+
+async function genSpeech(text){
+    const key=`${cfg.voiceId}-${text}-${cfg.speed}`;
+    if(cache[key])return cache[key];
+    const r=await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${cfg.voiceId}`,{
+        method:'POST',headers:{'xi-api-key':API_KEY,'Content-Type':'application/json'},
+        body:JSON.stringify({text,model_id:'eleven_multilingual_v2',voice_settings:{stability:cfg.stability,similarity_boost:cfg.similarity,speed:cfg.speed}})
+    });
+    if(!r.ok)throw new Error('Error generando audio');
+    const blob=await r.blob();
+    cache[key]=URL.createObjectURL(blob);
+    return cache[key];
+}
+
+function stopAudio(){if(audio){audio.pause();audio=null;}if(timeout){clearTimeout(timeout);timeout=null;}}
+function setStatus(s){
+    $('statusDot').className='status-dot '+s;
+    $('statusText').textContent=s==='speaking'?'Dictando...':s==='waiting'?'Tu turno':s==='paused'?'En pausa':s==='loading'?'Generando...':'Listo';
+}
+function updateUI(){
+    $('counter').textContent=`Frase ${idx+1} de ${phrases.length}`;
+    $('phraseText').textContent=phrases[idx]||'';
+    $('progressFill').style.width=((idx+1)/phrases.length*100)+'%';
+    $('repInd').textContent=cfg.reps>1?`Repetición ${rep+1} de ${cfg.reps}`:'';
+}
+
+async function playPhrase(){
+    if(!playing||paused||idx>=phrases.length)return;
+    updateUI();setStatus('loading');
+    try{
+        const url=await genSpeech(phrases[idx]);
+        audio=new Audio(url);
+        const start=Date.now();
+        audio.onended=()=>{
+            lastDur=(Date.now()-start)/1000;
+            rep++;
+            if(rep<cfg.reps){timeout=setTimeout(playPhrase,500);return;}
+            rep=0;
+            if(idx<phrases.length-1){
+                setStatus('waiting');
+                const pause=cfg.pauseType==='fixed'?cfg.fixed*1000:lastDur*cfg.mult*1000;
+                timeout=setTimeout(()=>{idx++;playPhrase();},pause);
+            }else{playing=false;setStatus('');$('ppText').textContent='Empezar de nuevo';$('btnPlayPause').querySelector('.icon').textContent='▶️';}
+        };
+        setStatus('speaking');audio.play();
+    }catch(e){showErr(e.message);playing=false;}
+}
+
+function checkStart(){$('btnStart').disabled=!($('script').value.trim()&&cfg.voiceId);}
+
+$('script').addEventListener('input',checkStart);
+$('voiceSelect').addEventListener('change',e=>cfg.voiceId=e.target.value);
+$('speed').addEventListener('input',e=>{cfg.speed=parseFloat(e.target.value);$('speedVal').textContent=cfg.speed+'x';});
+$('stability').addEventListener('input',e=>{cfg.stability=parseFloat(e.target.value);$('stabilityVal').textContent=cfg.stability;});
+$('similarity').addEventListener('input',e=>{cfg.similarity=parseFloat(e.target.value);$('similarityVal').textContent=cfg.similarity;});
+$('reps').addEventListener('input',e=>{cfg.reps=parseInt(e.target.value);$('repsVal').textContent=cfg.reps;});
+$('pauseType').addEventListener('change',e=>{cfg.pauseType=e.target.value;$('propOpts').style.display=cfg.pauseType==='proportional'?'flex':'none';$('fixedOpts').style.display=cfg.pauseType==='fixed'?'flex':'none';});
+$('mult').addEventListener('input',e=>{cfg.mult=parseFloat(e.target.value);$('multVal').textContent=cfg.mult+'x';});
+$('fixedSec').addEventListener('input',e=>{cfg.fixed=parseFloat(e.target.value);$('fixedVal').textContent=cfg.fixed+'s';});
+
+$('btnPreview').addEventListener('click',async()=>{
+    $('btnPreview').disabled=true;$('btnPreview').textContent='🔄 Generando...';
+    try{const url=await genSpeech('Hola, esta es una prueba de mi voz.');const a=new Audio(url);a.onended=()=>{$('btnPreview').disabled=false;$('btnPreview').textContent='🔊 Escuchar preview';};a.play();}
+    catch(e){showErr(e.message);$('btnPreview').disabled=false;$('btnPreview').textContent='🔊 Escuchar preview';}
+});
+
+$('btnStart').addEventListener('click',()=>{
+    phrases=$('script').value.split(/\.(?:\s|$)/).map(s=>s.trim()).filter(s=>s);
+    if(!phrases.length){showErr('No hay frases');return;}
+    idx=0;rep=0;cache={};hideErr();
+    $('setup').classList.remove('active');$('player').classList.add('active');
+    playing=true;paused=false;
+    $('ppText').textContent='Pausar';$('btnPlayPause').querySelector('.icon').textContent='⏸️';
+    playPhrase();
+});
+
+$('btnPlayPause').addEventListener('click',()=>{
+    if(!playing){idx=0;rep=0;playing=true;paused=false;$('ppText').textContent='Pausar';$('btnPlayPause').querySelector('.icon').textContent='⏸️';playPhrase();}
+    else if(paused){paused=false;$('ppText').textContent='Pausar';$('btnPlayPause').querySelector('.icon').textContent='⏸️';playPhrase();}
+    else{paused=true;stopAudio();setStatus('paused');$('ppText').textContent='Continuar';$('btnPlayPause').querySelector('.icon').textContent='▶️';}
+});
+
+$('btnPrev').addEventListener('click',()=>{stopAudio();idx=Math.max(0,idx-1);rep=0;updateUI();if(playing&&!paused)playPhrase();});
+$('btnNext').addEventListener('click',()=>{stopAudio();idx=Math.min(phrases.length-1,idx+1);rep=0;updateUI();if(playing&&!paused)playPhrase();});
+$('btnRepeat').addEventListener('click',()=>{stopAudio();rep=0;if(playing&&!paused)playPhrase();});
+$('btnBack').addEventListener('click',()=>{stopAudio();playing=false;paused=false;$('player').classList.remove('active');$('setup').classList.add('active');loadQuota();});
+
+loadVoices();loadQuota();
+</script>
+</body>
+</html>
