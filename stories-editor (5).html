@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Editor de Stories</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    * { font-family: 'Inter', sans-serif; box-sizing: border-box; margin: 0; padding: 0; }
+    html, body, #root { height: 100%; background: #0a0a14; }
+    .thumbnail-item { transition: transform 0.15s, opacity 0.15s; }
+    .thumbnail-item.dragging { opacity: 0.5; transform: scale(0.95); }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <script type="text/babel">
+    const { useState, useRef, useEffect } = React;
+
+    function StoriesEditor() {
+      const DAYS = ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'];
+      const FONTS = [
+        { id: 'instagram', name: 'Instagram', fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif', fontWeight: 700 },
+        { id: 'classic', name: 'Classic', fontFamily: 'Georgia, serif', fontWeight: 700 },
+        { id: 'strong', name: 'Strong', fontFamily: 'Impact, sans-serif', fontWeight: 900 },
+        { id: 'typewriter', name: 'Typewriter', fontFamily: 'Courier New, monospace', fontWeight: 700 }
+      ];
+      const DRAW_COLORS = ['#FFFFFF', '#000000', '#FF3B30', '#FF9500', '#FFCC00', '#34C759', '#007AFF', '#AF52DE', '#FF2D55', '#00FFFF', '#FF00FF', '#00FF00'];
+      const TEXT_COLORS = ['#FFFFFF', '#000000', '#FF3B30', '#FFCC00', '#34C759', '#007AFF'];
+      const MAX_CHARS_WIDE = 40;
+      const MAX_CHARS_NARROW = 25;
+
+      const [stories, setStories] = useState(DAYS.map(day => ({ day, slots: [null, null, null, null], texts: [[], [], [], []], drawings: [[], [], [], []], overlays: [[], [], [], []] })));
+      const [activeDayIdx, setActiveDayIdx] = useState(0);
+      const [activeSlotIdx, setActiveSlotIdx] = useState(0);
+      const [selectedElements, setSelectedElements] = useState([]);
+      const [selectedDrawingId, setSelectedDrawingId] = useState(null);
+      const [selectedThumbIdx, setSelectedThumbIdx] = useState(null);
+      const [tool, setTool] = useState('select');
+      const [drawColor, setDrawColor] = useState('#FFFFFF');
+      const [brushStyle, setBrushStyle] = useState('normal');
+      const [brushTip, setBrushTip] = useState('normal');
+      const [brushSize, setBrushSize] = useState(5);
+      const [isDrawing, setIsDrawing] = useState(false);
+      const [currentPath, setCurrentPath] = useState([]);
+      const [guionText, setGuionText] = useState('');
+      const [draggedThumb, setDraggedThumb] = useState(null);
+
+      const fileInputRef = useRef(null);
+      const overlayInputRef = useRef(null);
+      const canvasRef = useRef(null);
+
+      const currentStory = stories[activeDayIdx];
+      const currentImage = currentStory.slots[activeSlotIdx];
+      const currentTexts = currentStory.texts[activeSlotIdx];
+      const currentDrawings = currentStory.drawings[activeSlotIdx];
+      const currentOverlays = currentStory.overlays[activeSlotIdx];
+
+      useEffect(() => {
+        const handleKeyDown = (e) => {
+          if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
+          
+          if (e.key === 'Delete' || e.key === 'Backspace') {
+            e.preventDefault();
+            if (selectedElements.length > 0) deleteSelected();
+            else if (selectedDrawingId) deleteDrawing(selectedDrawingId);
+            else if (selectedThumbIdx !== null) deleteSlot(selectedThumbIdx);
+          }
+          
+          if (e.key === ' ') {
+            e.preventDefault();
+            if (selectedElements.length > 0) {
+              selectedElements.forEach(sel => {
+                if (sel.type === 'text') {
+                  const text = currentTexts.find(t => t.id === sel.id);
+                  if (text) {
+                    const isWide = text.maxChars === MAX_CHARS_WIDE;
+                    updateText(sel.id, { maxChars: isWide ? MAX_CHARS_NARROW : MAX_CHARS_WIDE });
+                  }
+                }
+              });
+            } else if (selectedDrawingId) {
+              const drawing = currentDrawings.find(d => d.id === selectedDrawingId);
+              if (drawing) {
+                updateDrawing(selectedDrawingId, { style: drawing.style === 'neon' ? 'normal' : 'neon' });
+              }
+            }
+          }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+      }, [selectedElements, selectedDrawingId, selectedThumbIdx, activeDayIdx, activeSlotIdx, currentTexts, currentDrawings]);
+
+      useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        
+        const handleWheel = (e) => {
+          const delta = e.deltaY > 0 ? -1 : 1;
+          
+          if (selectedDrawingId) {
+            e.preventDefault();
+            const drawing = currentDrawings.find(d => d.id === selectedDrawingId);
+            if (drawing) updateDrawing(selectedDrawingId, { size: Math.max(2, Math.min(30, drawing.size + delta)) });
+            return;
+          }
+          
+          if (selectedElements.length > 0) {
+            e.preventDefault();
+            selectedElements.forEach(sel => {
+              if (sel.type === 'text') {
+                const text = currentTexts.find(t => t.id === sel.id);
+                if (text) {
+                  if (e.ctrlKey || e.metaKey) {
+                    const newTexts = currentTexts.map(t => t.id === sel.id ? { ...t, rotation: ((t.rotation || 0) + delta * 5 + 360) % 360 } : t);
+                    updateStory(activeDayIdx, 'texts', activeSlotIdx, newTexts);
+                  } else if (e.shiftKey) {
+                    const currentOpacity = text.bgOpacity ?? 1;
+                    const newTexts = currentTexts.map(t => t.id === sel.id ? { ...t, bgOpacity: Math.max(0, Math.min(1, currentOpacity + delta * 0.1)) } : t);
+                    updateStory(activeDayIdx, 'texts', activeSlotIdx, newTexts);
+                  } else {
+                    const newTexts = currentTexts.map(t => t.id === sel.id ? { ...t, fontSize: Math.max(14, Math.min(72, t.fontSize + delta * 2)) } : t);
+                    updateStory(activeDayIdx, 'texts', activeSlotIdx, newTexts);
+                  }
+                }
+              } else if (sel.type === 'overlay') {
+                const overlay = currentOverlays.find(o => o.id === sel.id);
+                if (overlay) {
+                  const newW = Math.max(30, overlay.width + delta * 8);
+                  const newH = newW / overlay.aspectRatio;
+                  const newOverlays = currentOverlays.map(o => o.id === sel.id ? { ...o, width: newW, height: newH } : o);
+                  updateStory(activeDayIdx, 'overlays', activeSlotIdx, newOverlays);
+                }
+              }
+            });
+          }
+        };
+        canvas.addEventListener('wheel', handleWheel, { passive: false });
+        return () => canvas.removeEventListener('wheel', handleWheel);
+      }, [selectedElements, selectedDrawingId, currentTexts, currentOverlays, currentDrawings, activeDayIdx, activeSlotIdx]);
+
+      const updateStory = (dayIdx, field, slotIdx, value) => {
+        setStories(prev => { 
+          const newStories = [...prev]; 
+          const newData = [...newStories[dayIdx][field]]; 
+          newData[slotIdx] = value; 
+          newStories[dayIdx] = { ...newStories[dayIdx], [field]: newData }; 
+          return newStories; 
+        });
+      };
+
+      const handleImageUpload = (e) => {
+        Array.from(e.target.files).forEach((file, i) => {
+          if (activeSlotIdx + i < 4) {
+            const reader = new FileReader();
+            reader.onload = (ev) => updateStory(activeDayIdx, 'slots', activeSlotIdx + i, ev.target.result);
+            reader.readAsDataURL(file);
+          }
+        });
+      };
+
+      const handleOverlayUpload = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            const img = new Image();
+            img.onload = () => {
+              const aspectRatio = img.width / img.height;
+              const newOverlay = { 
+                id: Date.now().toString(), 
+                src: ev.target.result, 
+                x: 140, 
+                y: 250, 
+                width: 120, 
+                height: 120 / aspectRatio,
+                aspectRatio 
+              };
+              updateStory(activeDayIdx, 'overlays', activeSlotIdx, [...currentOverlays, newOverlay]);
+              setSelectedElements([{ type: 'overlay', id: newOverlay.id }]);
+            };
+            img.src = ev.target.result;
+          };
+          reader.readAsDataURL(file);
+        }
+        e.target.value = '';
+      };
+
+      const addTextsFromGuion = () => {
+        const lines = guionText.split('\n').filter(l => l.trim());
+        if (lines.length === 0) return;
+        const newTexts = [];
+        const font = FONTS[0];
+        lines.forEach((line, i) => {
+          newTexts.push({ 
+            id: Date.now().toString() + i, 
+            content: line.trim(), 
+            x: 185, 
+            y: 80 + i * 60, 
+            fontSize: 24, 
+            color: '#FFFFFF', 
+            bgColor: '#000000',
+            bgOpacity: 1,
+            fontId: font.id, 
+            fontFamily: font.fontFamily,
+            fontWeight: font.fontWeight,
+            rotation: 0, 
+            align: 'left',
+            maxChars: MAX_CHARS_WIDE
+          });
+        });
+        updateStory(activeDayIdx, 'texts', activeSlotIdx, [...currentTexts, ...newTexts]);
+        setSelectedElements(newTexts.map(t => ({ type: 'text', id: t.id })));
+        setGuionText('');
+      };
+
+      const updateText = (id, updates) => {
+        const newTexts = currentTexts.map(t => t.id === id ? { ...t, ...updates } : t);
+        updateStory(activeDayIdx, 'texts', activeSlotIdx, newTexts);
+      };
+
+      const updateOverlay = (id, updates) => {
+        const newOverlays = currentOverlays.map(o => o.id === id ? { ...o, ...updates } : o);
+        updateStory(activeDayIdx, 'overlays', activeSlotIdx, newOverlays);
+      };
+
+      const updateDrawing = (id, updates) => {
+        const newDrawings = currentDrawings.map(d => d.id === id ? { ...d, ...updates } : d);
+        updateStory(activeDayIdx, 'drawings', activeSlotIdx, newDrawings);
+      };
+      
+      const deleteSelected = () => {
+        const textIds = selectedElements.filter(s => s.type === 'text').map(s => s.id);
+        const overlayIds = selectedElements.filter(s => s.type === 'overlay').map(s => s.id);
+        if (textIds.length) updateStory(activeDayIdx, 'texts', activeSlotIdx, currentTexts.filter(t => !textIds.includes(t.id)));
+        if (overlayIds.length) updateStory(activeDayIdx, 'overlays', activeSlotIdx, currentOverlays.filter(o => !overlayIds.includes(o.id)));
+        setSelectedElements([]);
+      };
+
+      const deleteDrawing = (id) => {
+        updateStory(activeDayIdx, 'drawings', activeSlotIdx, currentDrawings.filter(d => d.id !== id));
+        setSelectedDrawingId(null);
+      };
+
+      const deleteSlot = (slotIdx) => {
+        updateStory(activeDayIdx, 'slots', slotIdx, null);
+        updateStory(activeDayIdx, 'texts', slotIdx, []);
+        updateStory(activeDayIdx, 'drawings', slotIdx, []);
+        updateStory(activeDayIdx, 'overlays', slotIdx, []);
+        setSelectedThumbIdx(null);
+        if (activeSlotIdx === slotIdx) setActiveSlotIdx(0);
+      };
+
+      const undoLastAction = () => {
+        if (currentDrawings.length > 0) {
+          updateStory(activeDayIdx, 'drawings', activeSlotIdx, currentDrawings.slice(0, -1));
+          setSelectedDrawingId(null);
+        } else if (currentTexts.length > 0) {
+          updateStory(activeDayIdx, 'texts', activeSlotIdx, currentTexts.slice(0, -1));
+          setSelectedElements([]);
+        } else if (currentOverlays.length > 0) {
+          updateStory(activeDayIdx, 'overlays', activeSlotIdx, currentOverlays.slice(0, -1));
+          setSelectedElements([]);
+        }
+      };
+
+      const clearAll = () => {
+        updateStory(activeDayIdx, 'texts', activeSlotIdx, []);
+        updateStory(activeDayIdx, 'drawings', activeSlotIdx, []);
+        updateStory(activeDayIdx, 'overlays', activeSlotIdx, []);
+        setSelectedElements([]);
+        setSelectedDrawingId(null);
+      };
+
+      const handleCanvasMouseDown = (e) => {
+        const rect = canvasRef.current.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        if (tool === 'draw') {
+          setIsDrawing(true);
+          setCurrentPath([{ x, y }]);
+          setSelectedElements([]);
+          setSelectedDrawingId(null);
+        } else {
+          setSelectedElements([]);
+          setSelectedDrawingId(null);
+        }
+      };
+
+      const handleCanvasMouseMove = (e) => {
+        if (!isDrawing || tool !== 'draw') return;
+        const rect = canvasRef.current.getBoundingClientRect();
+        setCurrentPath(prev => [...prev, { x: e.clientX - rect.left, y: e.clientY - rect.top }]);
+      };
+
+      const handleCanvasMouseUp = () => {
+        if (isDrawing && currentPath.length > 1) {
+          const newDrawing = { id: Date.now().toString(), path: currentPath, color: drawColor, size: brushSize, style: brushStyle, tip: brushTip };
+          updateStory(activeDayIdx, 'drawings', activeSlotIdx, [...currentDrawings, newDrawing]);
+          setSelectedDrawingId(newDrawing.id);
+        }
+        setIsDrawing(false);
+        setCurrentPath([]);
+      };
+
+      const startDrag = (type, id, e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        setSelectedElements([{ type, id }]);
+        setSelectedDrawingId(null);
+        setSelectedThumbIdx(null);
+        
+        const startMouseX = e.clientX;
+        const startMouseY = e.clientY;
+        
+        let item = type === 'text' ? currentTexts.find(t => t.id === id) : currentOverlays.find(o => o.id === id);
+        if (!item) return;
+        
+        const startX = item.x;
+        const startY = item.y;
+
+        const onMove = (ev) => {
+          const dx = ev.clientX - startMouseX;
+          const dy = ev.clientY - startMouseY;
+          const newX = startX + dx;
+          const newY = startY + dy;
+          if (type === 'text') updateText(id, { x: newX, y: newY });
+          else updateOverlay(id, { x: newX, y: newY });
+        };
+
+        const onUp = () => {
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+        };
+
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      };
+
+      const selectDrawing = (id, e) => {
+        e.stopPropagation();
+        setSelectedDrawingId(id);
+        setSelectedElements([]);
+        setSelectedThumbIdx(null);
+      };
+
+      const handleThumbDragStart = (idx) => setDraggedThumb(idx);
+      const handleThumbDragOver = (e) => e.preventDefault();
+      const handleThumbDrop = (idx) => {
+        if (draggedThumb === null || draggedThumb === idx) return;
+        const newSlots = [...currentStory.slots];
+        const newTexts = [...currentStory.texts];
+        const newDrawings = [...currentStory.drawings];
+        const newOverlays = [...currentStory.overlays];
+        [newSlots[draggedThumb], newSlots[idx]] = [newSlots[idx], newSlots[draggedThumb]];
+        [newTexts[draggedThumb], newTexts[idx]] = [newTexts[idx], newTexts[draggedThumb]];
+        [newDrawings[draggedThumb], newDrawings[idx]] = [newDrawings[idx], newDrawings[draggedThumb]];
+        [newOverlays[draggedThumb], newOverlays[idx]] = [newOverlays[idx], newOverlays[draggedThumb]];
+        setStories(prev => {
+          const newStories = [...prev];
+          newStories[activeDayIdx] = { ...newStories[activeDayIdx], slots: newSlots, texts: newTexts, drawings: newDrawings, overlays: newOverlays };
+          return newStories;
+        });
+        setDraggedThumb(null);
+      };
+
+      const renderPath = (drawing, key, isPreview = false) => {
+        const { path, color, size, style, tip } = drawing;
+        if (path.length < 2) return null;
+        
+        let d = `M ${path[0].x} ${path[0].y}`;
+        for (let i = 1; i < path.length; i++) d += ` L ${path[i].x} ${path[i].y}`;
+        
+        const isSelected = !isPreview && drawing.id === selectedDrawingId;
+        
+        let arrowHead = null;
+        if (tip === 'arrow' && path.length >= 2) {
+          const lastPoint = path[path.length - 1];
+          const prevPoint = path.length > 5 ? path[path.length - 6] : path[0];
+          const angle = Math.atan2(lastPoint.y - prevPoint.y, lastPoint.x - prevPoint.x);
+          const arrowLength = 18 + size;
+          const arrowAngle = 0.5;
+          
+          arrowHead = (
+            <path
+              d={`M ${lastPoint.x - arrowLength * Math.cos(angle - arrowAngle)} ${lastPoint.y - arrowLength * Math.sin(angle - arrowAngle)} 
+                  L ${lastPoint.x + size * Math.cos(angle)} ${lastPoint.y + size * Math.sin(angle)} 
+                  L ${lastPoint.x - arrowLength * Math.cos(angle + arrowAngle)} ${lastPoint.y - arrowLength * Math.sin(angle + arrowAngle)}`}
+              stroke={color}
+              strokeWidth={size}
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              filter={style === 'neon' ? 'url(#neonGlow)' : ''}
+            />
+          );
+        }
+        
+        return (
+          <g key={key} onClick={(e) => !isPreview && selectDrawing(drawing.id, e)} style={{ cursor: isPreview ? 'default' : 'pointer' }}>
+            {isSelected && <path d={d} stroke="rgba(0,255,255,0.5)" strokeWidth={size + 8} fill="none" strokeLinecap="round" strokeLinejoin="round" />}
+            <path d={d} stroke={color} strokeWidth={size} fill="none" strokeLinecap="round" strokeLinejoin="round" filter={style === 'neon' ? 'url(#neonGlow)' : ''} />
+            {arrowHead}
+          </g>
+        );
+      };
+
+      const splitTextIntoLines = (content, maxChars) => {
+        const words = content.split(' ');
+        const lines = [];
+        let currentLine = '';
+        
+        words.forEach(word => {
+          const testLine = currentLine ? currentLine + ' ' + word : word;
+          if (testLine.length > maxChars && currentLine) {
+            lines.push(currentLine);
+            currentLine = word;
+          } else {
+            currentLine = testLine;
+          }
+        });
+        if (currentLine) lines.push(currentLine);
+        return lines;
+      };
+
+      // Instagram-style text with connected background block using SVG path
+      const InstagramTextElement = ({ t, isSelected, onMouseDown }) => {
+        const fs = t.fontSize;
+        // Medidas exactas Instagram
+        const padH = fs * 0.39;
+        const padV = fs * 0.32;
+        const radius = fs * 0.29;
+        const lineH = fs * 1.2;
+        const bgColor = t.bgColor || '#000000';
+        const bgOpacity = t.bgOpacity ?? 1;
+        const align = t.align || 'left';
+        
+        const lines = splitTextIntoLines(t.content, t.maxChars || MAX_CHARS_WIDE);
+        
+        const [lineWidths, setLineWidths] = useState([]);
+        
+        useEffect(() => {
+          const measure = document.createElement('span');
+          measure.style.cssText = `
+            position: absolute;
+            visibility: hidden;
+            white-space: nowrap;
+            font-family: ${t.fontFamily || 'Inter, -apple-system, sans-serif'};
+            font-weight: ${t.fontWeight || 700};
+            font-size: ${fs}px;
+            letter-spacing: 0;
+          `;
+          document.body.appendChild(measure);
+          
+          const widths = lines.map(line => {
+            measure.textContent = line || ' ';
+            return measure.offsetWidth;
+          });
+          setLineWidths(widths);
+          document.body.removeChild(measure);
+        }, [t.content, fs, t.fontFamily, t.fontWeight, t.maxChars]);
+
+        const getBgColor = () => {
+          if (bgOpacity <= 0) return 'transparent';
+          if (bgOpacity >= 1) return bgColor;
+          const hex = bgColor.replace('#', '');
+          const r = parseInt(hex.substr(0, 2), 16);
+          const g = parseInt(hex.substr(2, 2), 16);
+          const b = parseInt(hex.substr(4, 2), 16);
+          return `rgba(${r},${g},${b},${bgOpacity})`;
+        };
+
+        // Build SVG path for stepped background based on alignment
+        const buildSteppedPath = () => {
+          if (lineWidths.length === 0) return '';
+          
+          const n = lineWidths.length;
+          const boxWidths = lineWidths.map(w => padH + w + padH);
+          const maxW = Math.max(...boxWidths);
+          const totalH = n * lineH + padV * 2;
+          const r = radius;
+          
+          // For left alignment: simple path with steps on right
+          if (align === 'left') {
+            let rights = [...boxWidths];
+            // Preprocess
+            for (let i = 0; i < n - 1; i++) {
+              const diff = Math.abs(rights[i] - rights[i + 1]);
+              if (diff < 20 && diff > 0) {
+                const maxR = Math.max(rights[i], rights[i + 1]);
+                rights[i] = maxR;
+                rights[i + 1] = maxR;
+              }
+            }
+            
+            let d = `M ${r} 0`;
+            d += ` L ${rights[0] - r} 0`;
+            d += ` Q ${rights[0]} 0, ${rights[0]} ${r}`;
+            
+            for (let i = 0; i < n; i++) {
+              const thisR = rights[i];
+              const lineBottom = padV + (i + 1) * lineH;
+              
+              if (i < n - 1) {
+                const nextR = rights[i + 1];
+                const diff = nextR - thisR;
+                
+                if (Math.abs(diff) < 2) {
+                  d += ` L ${thisR} ${lineBottom}`;
+                } else if (diff < 0) {
+                  const stepY = lineBottom + padV;
+                  d += ` L ${thisR} ${stepY - r}`;
+                  d += ` Q ${thisR} ${stepY}, ${thisR - r} ${stepY}`;
+                  d += ` L ${nextR + r} ${stepY}`;
+                  d += ` Q ${nextR} ${stepY}, ${nextR} ${stepY + r}`;
+                } else {
+                  const stepY = lineBottom - padV;
+                  d += ` L ${thisR} ${stepY - r}`;
+                  d += ` L ${thisR} ${stepY}`;
+                  d += ` L ${nextR - r} ${stepY}`;
+                  d += ` Q ${nextR} ${stepY}, ${nextR} ${stepY + r}`;
+                }
+              } else {
+                d += ` L ${thisR} ${totalH - r}`;
+                d += ` Q ${thisR} ${totalH}, ${thisR - r} ${totalH}`;
+              }
+            }
+            
+            d += ` L ${r} ${totalH}`;
+            d += ` Q 0 ${totalH}, 0 ${totalH - r}`;
+            d += ` L 0 ${r}`;
+            d += ` Q 0 0, ${r} 0`;
+            d += ' Z';
+            return d;
+          }
+          
+          // For right alignment: steps on left, straight on right
+          if (align === 'right') {
+            let lefts = boxWidths.map(w => maxW - w);
+            // Preprocess
+            for (let i = 0; i < n - 1; i++) {
+              const diff = Math.abs(lefts[i] - lefts[i + 1]);
+              if (diff < 20 && diff > 0) {
+                const minL = Math.min(lefts[i], lefts[i + 1]);
+                lefts[i] = minL;
+                lefts[i + 1] = minL;
+              }
+            }
+            
+            let d = `M ${lefts[0] + r} 0`;
+            d += ` L ${maxW - r} 0`;
+            d += ` Q ${maxW} 0, ${maxW} ${r}`;
+            d += ` L ${maxW} ${totalH - r}`;
+            d += ` Q ${maxW} ${totalH}, ${maxW - r} ${totalH}`;
+            d += ` L ${lefts[n-1] + r} ${totalH}`;
+            d += ` Q ${lefts[n-1]} ${totalH}, ${lefts[n-1]} ${totalH - r}`;
+            
+            // Go up on left side with steps
+            for (let i = n - 1; i >= 0; i--) {
+              const thisL = lefts[i];
+              const lineTop = padV + i * lineH;
+              
+              if (i > 0) {
+                const prevL = lefts[i - 1];
+                const diff = prevL - thisL;
+                
+                if (Math.abs(diff) < 2) {
+                  d += ` L ${thisL} ${lineTop}`;
+                } else if (diff > 0) {
+                  // Previous line starts more to the right (narrower) - step inward
+                  const stepY = lineTop - padV;
+                  d += ` L ${thisL} ${stepY + r}`;
+                  d += ` Q ${thisL} ${stepY}, ${thisL + r} ${stepY}`;
+                  d += ` L ${prevL - r} ${stepY}`;
+                  d += ` Q ${prevL} ${stepY}, ${prevL} ${stepY - r}`;
+                } else {
+                  // Previous line starts more to the left (wider) - step outward
+                  const stepY = lineTop + padV;
+                  d += ` L ${thisL} ${stepY + r}`;
+                  d += ` L ${thisL} ${stepY}`;
+                  d += ` L ${prevL + r} ${stepY}`;
+                  d += ` Q ${prevL} ${stepY}, ${prevL} ${stepY - r}`;
+                }
+              } else {
+                d += ` L ${thisL} ${r}`;
+                d += ` Q ${thisL} 0, ${thisL + r} 0`;
+              }
+            }
+            
+            d += ' Z';
+            return d;
+          }
+          
+          // For center alignment: use max width rectangle (simpler, more stable)
+          let d = `M ${r} 0`;
+          d += ` L ${maxW - r} 0`;
+          d += ` Q ${maxW} 0, ${maxW} ${r}`;
+          d += ` L ${maxW} ${totalH - r}`;
+          d += ` Q ${maxW} ${totalH}, ${maxW - r} ${totalH}`;
+          d += ` L ${r} ${totalH}`;
+          d += ` Q 0 ${totalH}, 0 ${totalH - r}`;
+          d += ` L 0 ${r}`;
+          d += ` Q 0 0, ${r} 0`;
+          d += ' Z';
+          return d;
+        };
+
+        const maxW = lineWidths.length > 0 ? Math.max(...lineWidths.map(w => padH + w + padH)) : 100;
+        const totalH = lines.length * lineH + padV * 2;
+        const path = buildSteppedPath();
+
+        return (
+          <div
+            onMouseDown={onMouseDown}
+            style={{
+              position: 'absolute',
+              left: t.x,
+              top: t.y,
+              transform: `translate(-50%, -50%) rotate(${t.rotation || 0}deg)`,
+              cursor: 'move',
+              outline: isSelected ? '2px solid #00ffff' : 'none',
+              outlineOffset: 4
+            }}
+          >
+            <div style={{ position: 'relative', display: 'inline-block', width: maxW }}>
+              {bgOpacity > 0 && lineWidths.length > 0 && (
+                <svg 
+                  style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}
+                  width={maxW}
+                  height={totalH}
+                >
+                  <path d={path} fill={getBgColor()} />
+                </svg>
+              )}
+              <div style={{ 
+                position: 'relative',
+                padding: `${padV}px ${padH}px`,
+                zIndex: 1
+              }}>
+                {lines.map((line, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      color: t.color,
+                      fontSize: fs,
+                      fontFamily: t.fontFamily || 'Inter, -apple-system, sans-serif',
+                      fontWeight: t.fontWeight || 700,
+                      lineHeight: 1.2,
+                      textAlign: align,
+                      whiteSpace: 'nowrap',
+                      letterSpacing: '0'
+                    }}
+                  >
+                    {line}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      };
+      
+      const renderInstagramText = (t) => {
+        const isSelected = selectedElements.some(s => s.type === 'text' && s.id === t.id);
+        return (
+          <InstagramTextElement
+            key={t.id}
+            t={t}
+            isSelected={isSelected}
+            onMouseDown={(e) => startDrag('text', t.id, e)}
+          />
+        );
+      };
+
+      const exportSingleStory = async (dayIdx, slotIdx) => {
+        const story = stories[dayIdx];
+        const image = story.slots[slotIdx];
+        if (!image) return null;
+
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 1080; 
+        canvas.height = 1920;
+        
+        const img = new Image();
+        await new Promise((resolve) => { img.onload = resolve; img.src = image; });
+        
+        const imgRatio = img.width / img.height;
+        const canvasRatio = canvas.width / canvas.height;
+        let drawWidth, drawHeight, drawX, drawY;
+        
+        if (imgRatio > canvasRatio) {
+          drawWidth = canvas.width;
+          drawHeight = canvas.width / imgRatio;
+          drawX = 0;
+          drawY = (canvas.height - drawHeight) / 2;
+        } else {
+          drawHeight = canvas.height;
+          drawWidth = canvas.height * imgRatio;
+          drawX = (canvas.width - drawWidth) / 2;
+          drawY = 0;
+        }
+        
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+        
+        const canvasEl = canvasRef.current;
+        const elWidth = canvasEl?.offsetWidth || 370;
+        const elHeight = canvasEl?.offsetHeight || 658;
+        const scaleX = canvas.width / elWidth;
+        const scaleY = canvas.height / elHeight;
+        
+        const texts = story.texts[slotIdx] || [];
+        const drawings = story.drawings[slotIdx] || [];
+        const overlays = story.overlays[slotIdx] || [];
+
+        for (const overlay of overlays) { 
+          const oImg = new Image(); 
+          await new Promise((resolve) => { oImg.onload = resolve; oImg.onerror = resolve; oImg.src = overlay.src; });
+          const oW = overlay.width * scaleX;
+          const oH = overlay.height * scaleY;
+          ctx.drawImage(oImg, (overlay.x * scaleX) - oW/2, (overlay.y * scaleY) - oH/2, oW, oH);
+        }
+
+        drawings.forEach(dr => { 
+          ctx.beginPath(); 
+          ctx.strokeStyle = dr.color; 
+          ctx.lineWidth = dr.size * scaleX; 
+          ctx.lineCap = 'round'; 
+          ctx.lineJoin = 'round';
+          if (dr.style === 'neon') { ctx.shadowColor = dr.color; ctx.shadowBlur = 15 * scaleX; }
+          dr.path.forEach((p, i) => { 
+            if (i === 0) ctx.moveTo(p.x * scaleX, p.y * scaleY); 
+            else ctx.lineTo(p.x * scaleX, p.y * scaleY); 
+          }); 
+          ctx.stroke();
+          
+          if (dr.tip === 'arrow' && dr.path.length >= 2) {
+            const lastPoint = dr.path[dr.path.length - 1];
+            const prevPoint = dr.path.length > 5 ? dr.path[dr.path.length - 6] : dr.path[0];
+            const angle = Math.atan2(lastPoint.y - prevPoint.y, lastPoint.x - prevPoint.x);
+            const arrowLength = (18 + dr.size) * scaleX;
+            const arrowAngle = 0.5;
+            
+            ctx.beginPath();
+            ctx.moveTo(
+              lastPoint.x * scaleX - arrowLength * Math.cos(angle - arrowAngle),
+              lastPoint.y * scaleY - arrowLength * Math.sin(angle - arrowAngle)
+            );
+            ctx.lineTo(
+              lastPoint.x * scaleX + dr.size * scaleX * Math.cos(angle),
+              lastPoint.y * scaleY + dr.size * scaleY * Math.sin(angle)
+            );
+            ctx.lineTo(
+              lastPoint.x * scaleX - arrowLength * Math.cos(angle + arrowAngle),
+              lastPoint.y * scaleY - arrowLength * Math.sin(angle + arrowAngle)
+            );
+            ctx.stroke();
+          }
+          ctx.shadowBlur = 0;
+        });
+
+        // Export texts with Instagram style (stepped background)
+        texts.forEach(t => { 
+          ctx.save(); 
+          ctx.translate(t.x * scaleX, t.y * scaleY); 
+          if (t.rotation) ctx.rotate(t.rotation * Math.PI / 180);
+          
+          const fs = t.fontSize * scaleX;
+          // Medidas exactas Instagram
+          const padH = fs * 0.39;
+          const padV = fs * 0.32;
+          const radius = fs * 0.29;
+          const lineH = fs * 1.2;
+          
+          ctx.font = `${t.fontWeight || 700} ${fs}px ${t.fontFamily || 'Inter, -apple-system, sans-serif'}`;
+          ctx.textBaseline = 'top';
+          
+          const lines = splitTextIntoLines(t.content, t.maxChars || MAX_CHARS_WIDE);
+          
+          // Measure each line width
+          const lineWidths = lines.map(line => ctx.measureText(line).width);
+          
+          // Calculate rights with preprocessing for small differences
+          let rights = lineWidths.map(w => padH + w + padH);
+          for (let i = 0; i < rights.length - 1; i++) {
+            const diff = Math.abs(rights[i] - rights[i + 1]);
+            if (diff < 20 * scaleX && diff > 0) {
+              const maxR = Math.max(rights[i], rights[i + 1]);
+              rights[i] = maxR;
+              rights[i + 1] = maxR;
+            }
+          }
+          
+          const maxRight = Math.max(...rights);
+          const totalH = lines.length * lineH + padV * 2;
+          const r = radius;
+          const n = lines.length;
+          
+          // Draw stepped background
+          const bgOpacity = t.bgOpacity ?? 1;
+          if (bgOpacity > 0) {
+            const bgColor = t.bgColor || '#000000';
+            if (bgOpacity >= 1) {
+              ctx.fillStyle = bgColor;
+            } else {
+              const hex = bgColor.replace('#', '');
+              const rr = parseInt(hex.substr(0, 2), 16);
+              const gg = parseInt(hex.substr(2, 2), 16);
+              const bb = parseInt(hex.substr(4, 2), 16);
+              ctx.fillStyle = `rgba(${rr},${gg},${bb},${bgOpacity})`;
+            }
+            
+            // Offset to center
+            const offsetX = -maxRight / 2;
+            const offsetY = -totalH / 2;
+            
+            ctx.beginPath();
+            ctx.moveTo(offsetX + r, offsetY);
+            ctx.lineTo(offsetX + rights[0] - r, offsetY);
+            ctx.quadraticCurveTo(offsetX + rights[0], offsetY, offsetX + rights[0], offsetY + r);
+            
+            for (let i = 0; i < n; i++) {
+              const thisR = rights[i];
+              const lineBottom = padV + (i + 1) * lineH;
+              
+              if (i < n - 1) {
+                const nextR = rights[i + 1];
+                const diff = nextR - thisR;
+                
+                if (Math.abs(diff) < 2) {
+                  ctx.lineTo(offsetX + thisR, offsetY + lineBottom);
+                } else if (diff < 0) {
+                  const stepY = lineBottom + padV;
+                  ctx.lineTo(offsetX + thisR, offsetY + stepY - r);
+                  ctx.quadraticCurveTo(offsetX + thisR, offsetY + stepY, offsetX + thisR - r, offsetY + stepY);
+                  ctx.lineTo(offsetX + nextR + r, offsetY + stepY);
+                  ctx.quadraticCurveTo(offsetX + nextR, offsetY + stepY, offsetX + nextR, offsetY + stepY + r);
+                } else {
+                  const stepY = lineBottom - padV;
+                  ctx.lineTo(offsetX + thisR, offsetY + stepY - r);
+                  ctx.lineTo(offsetX + thisR, offsetY + stepY);
+                  ctx.lineTo(offsetX + nextR - r, offsetY + stepY);
+                  ctx.quadraticCurveTo(offsetX + nextR, offsetY + stepY, offsetX + nextR, offsetY + stepY + r);
+                }
+              } else {
+                ctx.lineTo(offsetX + thisR, offsetY + totalH - r);
+                ctx.quadraticCurveTo(offsetX + thisR, offsetY + totalH, offsetX + thisR - r, offsetY + totalH);
+              }
+            }
+            
+            ctx.lineTo(offsetX + r, offsetY + totalH);
+            ctx.quadraticCurveTo(offsetX, offsetY + totalH, offsetX, offsetY + totalH - r);
+            ctx.lineTo(offsetX, offsetY + r);
+            ctx.quadraticCurveTo(offsetX, offsetY, offsetX + r, offsetY);
+            ctx.fill();
+          }
+          
+          // Draw text
+          ctx.fillStyle = t.color;
+          ctx.textAlign = 'left';
+          let textY = -totalH / 2 + padV;
+          lines.forEach((line, i) => {
+            const lineX = -maxRight / 2 + padH;
+            ctx.fillText(line, lineX, textY);
+            textY += lineH;
+          });
+          
+          ctx.restore();
+        });
+
+        return { dataUrl: canvas.toDataURL('image/png'), name: `${DAYS[dayIdx]}-story-${slotIdx + 1}.png` };
+      };
+
+      const exportDay = async () => {
+        const results = [];
+        for (let i = 0; i < 4; i++) {
+          const result = await exportSingleStory(activeDayIdx, i);
+          if (result) results.push(result);
+        }
+        if (results.length === 0) return alert('No hay stories para exportar');
+        if (results.length === 1) {
+          const link = document.createElement('a'); link.download = results[0].name; link.href = results[0].dataUrl; link.click();
+        } else {
+          const zip = new JSZip();
+          results.forEach(r => zip.file(r.name, r.dataUrl.split(',')[1], { base64: true }));
+          const blob = await zip.generateAsync({ type: 'blob' });
+          const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${DAYS[activeDayIdx]}-stories.zip`; a.click();
+        }
+      };
+
+      const exportAll = async () => {
+        const zip = new JSZip();
+        let count = 0;
+        for (let d = 0; d < 7; d++) {
+          for (let s = 0; s < 4; s++) {
+            const result = await exportSingleStory(d, s);
+            if (result) { zip.file(`${DAYS[d]}/${result.name}`, result.dataUrl.split(',')[1], { base64: true }); count++; }
+          }
+        }
+        if (count === 0) return alert('No hay stories');
+        const blob = await zip.generateAsync({ type: 'blob' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'todas-las-stories.zip'; a.click();
+      };
+
+      const firstSelectedText = selectedElements.find(s => s.type === 'text');
+      const selectedTextObj = firstSelectedText ? currentTexts.find(t => t.id === firstSelectedText.id) : null;
+
+      return (
+        <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', color: 'white', background: '#0a0a14' }}>
+          {/* HEADER */}
+          <header style={{ width: '100%', padding: '12px 24px', background: 'rgba(0,0,0,0.4)', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <div style={{ width: 1400, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+                <h1 style={{ fontSize: 16, fontWeight: 700 }}>Editor de Stories</h1>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {DAYS.map((day, i) => (
+                    <button key={day} onClick={() => { setActiveDayIdx(i); setActiveSlotIdx(0); setSelectedElements([]); setSelectedDrawingId(null); }} 
+                      style={{ padding: '6px 12px', borderRadius: 4, fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', background: activeDayIdx === i ? 'linear-gradient(to right, #ec4899, #8b5cf6)' : 'rgba(255,255,255,0.1)', color: 'white' }}>
+                      {day}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              <div style={{ display: 'flex', gap: 6 }}>
+                {[0, 1, 2, 3].map(i => (
+                  <div 
+                    key={i}
+                    className={`thumbnail-item ${draggedThumb === i ? 'dragging' : ''}`}
+                    draggable
+                    onDragStart={() => handleThumbDragStart(i)}
+                    onDragOver={handleThumbDragOver}
+                    onDrop={() => handleThumbDrop(i)}
+                    onDragEnd={() => setDraggedThumb(null)}
+                    onClick={() => { setActiveSlotIdx(i); setSelectedElements([]); setSelectedDrawingId(null); setSelectedThumbIdx(i); }}
+                    style={{ 
+                      width: 32, height: 57, borderRadius: 4, overflow: 'hidden', cursor: 'grab',
+                      border: activeSlotIdx === i ? '2px solid #ec4899' : '2px solid rgba(255,255,255,0.2)',
+                      opacity: activeSlotIdx === i ? 1 : 0.7
+                    }}
+                  >
+                    {currentStory.slots[i] ? (
+                      <img src={currentStory.slots[i]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <div style={{ width: '100%', height: '100%', background: '#1f2937', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.3)', fontSize: 10 }}>{i + 1}</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={exportDay} style={{ padding: '8px 16px', borderRadius: 4, fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', background: 'linear-gradient(to right, #ec4899, #be185d)', color: 'white' }}>Exportar día</button>
+                <button onClick={exportAll} style={{ padding: '8px 16px', borderRadius: 4, fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', background: 'rgba(255,255,255,0.1)', color: 'white' }}>Exportar todos</button>
+              </div>
+            </div>
+          </header>
+
+          {/* CONTENEDOR 1400x700 - FONDO NEGRO */}
+          <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            <div style={{ width: 1400, height: 700, display: 'flex', gap: 16, background: '#0a0a14', borderRadius: 12, padding: 16 }}>
+              
+              {/* COLUMNA GUION - 33% */}
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 16, background: 'rgba(255,255,255,0.02)', borderRadius: 8 }}>
+                <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12, color: 'rgba(255,255,255,0.6)' }}>GUION STORY (BLOQUES DE TEXTO)</h3>
+                <textarea 
+                  value={guionText} 
+                  onChange={e => setGuionText(e.target.value)} 
+                  placeholder="Pega tu guion aquí..."
+                  style={{ flex: 1, background: 'rgba(88,28,135,0.3)', border: '2px solid rgba(236,72,153,0.4)', borderRadius: 8, padding: 16, fontSize: 15, color: 'white', resize: 'none', outline: 'none', fontWeight: 500 }}
+                />
+                <button onClick={addTextsFromGuion} disabled={!guionText.trim()} style={{ marginTop: 12, padding: '14px 20px', borderRadius: 6, fontSize: 15, fontWeight: 700, border: 'none', cursor: 'pointer', background: guionText.trim() ? 'linear-gradient(to right, #10b981, #14b8a6)' : 'rgba(255,255,255,0.1)', color: 'white', opacity: guionText.trim() ? 1 : 0.5 }}>
+                  Generar textos
+                </button>
+              </div>
+
+              {/* COLUMNA TOOLS - 33% */}
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 16, gap: 20, overflowY: 'auto', background: 'rgba(255,255,255,0.02)', borderRadius: 8 }}>
+                <div>
+                  <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12, color: 'white' }}>Dibujo</h3>
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+                    <button onClick={() => setBrushStyle('normal')} style={{ flex: 1, padding: '10px', borderRadius: 4, fontSize: 14, fontWeight: 600, border: 'none', cursor: 'pointer', background: brushStyle === 'normal' ? 'linear-gradient(to right, #ec4899, #8b5cf6)' : 'rgba(255,255,255,0.1)', color: 'white' }}>Normal</button>
+                    <button onClick={() => setBrushStyle('neon')} style={{ flex: 1, padding: '10px', borderRadius: 4, fontSize: 14, fontWeight: 600, border: 'none', cursor: 'pointer', background: brushStyle === 'neon' ? 'linear-gradient(to right, #ec4899, #8b5cf6)' : 'rgba(255,255,255,0.1)', color: 'white' }}>Neon</button>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+                    <button onClick={() => setBrushTip('normal')} style={{ flex: 1, padding: '10px', borderRadius: 4, fontSize: 14, fontWeight: 600, border: 'none', cursor: 'pointer', background: brushTip === 'normal' ? 'linear-gradient(to right, #ec4899, #8b5cf6)' : 'rgba(255,255,255,0.1)', color: 'white' }}>Línea</button>
+                    <button onClick={() => setBrushTip('arrow')} style={{ flex: 1, padding: '10px', borderRadius: 4, fontSize: 14, fontWeight: 600, border: 'none', cursor: 'pointer', background: brushTip === 'arrow' ? 'linear-gradient(to right, #ec4899, #8b5cf6)' : 'rgba(255,255,255,0.1)', color: 'white' }}>Flecha</button>
+                  </div>
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Colores dibujo</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {DRAW_COLORS.map(c => (
+                        <button key={c} onClick={() => setDrawColor(c)} style={{ width: 28, height: 28, borderRadius: 4, border: drawColor === c ? '2px solid white' : '2px solid transparent', background: c, cursor: 'pointer' }} />
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button onClick={undoLastAction} style={{ flex: 1, padding: '10px', borderRadius: 4, fontSize: 14, fontWeight: 600, border: 'none', cursor: 'pointer', background: 'rgba(255,255,255,0.1)', color: 'white' }}>↩ Deshacer</button>
+                    <button onClick={clearAll} style={{ flex: 1, padding: '10px', borderRadius: 4, fontSize: 14, fontWeight: 600, border: 'none', cursor: 'pointer', background: 'rgba(239,68,68,0.3)', color: '#f87171' }}>Borrar</button>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12, color: 'white' }}>Textos</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4, marginBottom: 10 }}>
+                    {FONTS.map(f => (
+                      <button key={f.id} onClick={() => selectedTextObj && updateText(firstSelectedText.id, { fontId: f.id, fontFamily: f.fontFamily, fontWeight: f.fontWeight })} style={{ padding: '8px 4px', borderRadius: 4, fontSize: 11, fontWeight: 600, border: 'none', cursor: 'pointer', background: selectedTextObj?.fontId === f.id ? 'linear-gradient(to right, #ec4899, #8b5cf6)' : 'rgba(255,255,255,0.1)', color: 'white', opacity: selectedTextObj ? 1 : 0.5 }}>{f.name}</button>
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
+                    {['left', 'center', 'right'].map((a, i) => (
+                      <button key={a} onClick={() => selectedTextObj && updateText(firstSelectedText.id, { align: a })} style={{ flex: 1, padding: '8px', borderRadius: 4, fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', background: selectedTextObj?.align === a ? 'linear-gradient(to right, #ec4899, #8b5cf6)' : 'rgba(255,255,255,0.1)', color: 'white', opacity: selectedTextObj ? 1 : 0.5 }}>{['Izq', 'Centro', 'Der'][i]}</button>
+                    ))}
+                  </div>
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Color texto</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {TEXT_COLORS.map(c => (
+                        <button key={c} onClick={() => selectedTextObj && updateText(firstSelectedText.id, { color: c })} style={{ width: 28, height: 28, borderRadius: 4, border: selectedTextObj?.color === c ? '2px solid white' : '2px solid transparent', background: c, cursor: 'pointer', opacity: selectedTextObj ? 1 : 0.5 }} />
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Color fondo (Shift+rueda = opacidad)</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {['#000000', '#FFFFFF', '#FF3B30', '#FF9500', '#FFCC00', '#34C759', '#007AFF', '#AF52DE'].map(c => (
+                        <button key={c} onClick={() => selectedTextObj && updateText(firstSelectedText.id, { bgColor: c })} style={{ width: 28, height: 28, borderRadius: 4, border: selectedTextObj?.bgColor === c ? '2px solid #00ffff' : '2px solid transparent', background: c, cursor: 'pointer', opacity: selectedTextObj ? 1 : 0.5 }} />
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button onClick={undoLastAction} style={{ flex: 1, padding: '10px', borderRadius: 4, fontSize: 14, fontWeight: 600, border: 'none', cursor: 'pointer', background: 'rgba(255,255,255,0.1)', color: 'white' }}>↩ Deshacer</button>
+                    <button onClick={clearAll} style={{ flex: 1, padding: '10px', borderRadius: 4, fontSize: 14, fontWeight: 600, border: 'none', cursor: 'pointer', background: 'rgba(239,68,68,0.3)', color: '#f87171' }}>Borrar</button>
+                  </div>
+                </div>
+              </div>
+
+              {/* COLUMNA CANVAS - 33% */}
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 16, alignItems: 'center', background: 'rgba(255,255,255,0.02)', borderRadius: 8 }}>
+                <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+                  <button onClick={() => setTool(tool === 'draw' ? 'select' : 'draw')} style={{ padding: '10px 20px', borderRadius: 4, fontSize: 14, fontWeight: 600, border: 'none', cursor: 'pointer', background: tool === 'draw' ? '#ec4899' : 'rgba(255,255,255,0.1)', color: 'white' }}>Dibujar</button>
+                  <button onClick={() => overlayInputRef.current?.click()} style={{ padding: '10px 20px', borderRadius: 4, fontSize: 14, fontWeight: 600, border: 'none', cursor: 'pointer', background: 'rgba(255,255,255,0.1)', color: 'white' }}>Captura</button>
+                </div>
+                
+                <div 
+                  ref={canvasRef} 
+                  style={{ width: '100%', maxWidth: 370, aspectRatio: '9/16', background: '#000', position: 'relative', cursor: tool === 'draw' ? 'crosshair' : 'default', overflow: 'hidden', borderRadius: 0 }}
+                  onMouseDown={handleCanvasMouseDown}
+                  onMouseMove={handleCanvasMouseMove}
+                  onMouseUp={handleCanvasMouseUp}
+                  onMouseLeave={handleCanvasMouseUp}
+                >
+                  {currentImage ? (
+                    <img src={currentImage} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none' }} draggable={false} />
+                  ) : (
+                    <div onClick={() => fileInputRef.current?.click()} style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#1a1a2e', cursor: 'pointer' }}>
+                      <div style={{ fontSize: 40, marginBottom: 8, color: 'rgba(255,255,255,0.2)' }}>+</div>
+                      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.2)' }}>Sube una imagen</div>
+                    </div>
+                  )}
+
+                  <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
+                    <defs>
+                      <filter id="neonGlow" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur stdDeviation="3" result="blur" />
+                        <feMerge><feMergeNode in="blur" /><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+                      </filter>
+                    </defs>
+                    <g style={{ pointerEvents: 'auto' }}>
+                      {currentDrawings.map((d, i) => renderPath(d, i))}
+                      {isDrawing && currentPath.length > 1 && renderPath({ path: currentPath, color: drawColor, size: brushSize, style: brushStyle, tip: brushTip }, 'current', true)}
+                    </g>
+                  </svg>
+
+                  {currentOverlays.map(o => (
+                    <div key={o.id} onMouseDown={(e) => startDrag('overlay', o.id, e)} style={{ position: 'absolute', left: o.x, top: o.y, transform: 'translate(-50%, -50%)', width: o.width, height: o.height, cursor: 'move', outline: selectedElements.some(s => s.type === 'overlay' && s.id === o.id) ? '2px solid #00ffff' : 'none' }}>
+                      <img src={o.src} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none' }} draggable={false} />
+                    </div>
+                  ))}
+
+                  {currentTexts.map(t => renderInstagramText(t))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleImageUpload} style={{ display: 'none' }} />
+          <input ref={overlayInputRef} type="file" accept="image/*" onChange={handleOverlayUpload} style={{ display: 'none' }} />
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<StoriesEditor />);
+  </script>
+</body>
+</html>
