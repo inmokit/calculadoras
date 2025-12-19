@@ -1,49 +1,80 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Teleprompter Auditivo</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#ec4899",
+                        "background-light": "#f8fafc",
+                        "background-dark": "#0f172a",
+                    },
+                    fontFamily: {
+                        display: ["Sora", "sans-serif"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.75rem",
+                    },
+                },
+            },
+        };
+    </script>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #fff; min-height: 100vh; padding: 16px; }
-        .container { max-width: 500px; margin: 0 auto; }
-        h1 { text-align: center; font-size: 1.3rem; margin-bottom: 20px; color: #94a3b8; font-weight: 500; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        input[type="range"]::-webkit-slider-runnable-track {
+            height: 4px;
+            background: #e2e8f0;
+            border-radius: 9999px;
+        }
+        .dark input[type="range"]::-webkit-slider-runnable-track {
+            background: #475569;
+        }
+        input[type="range"]::-moz-range-track {
+            height: 4px;
+            background: #e2e8f0;
+            border-radius: 9999px;
+        }
+        .dark input[type="range"]::-moz-range-track {
+            background: #475569;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background-color: #ec4899;
+            border-radius: 9999px;
+            border: 2px solid #f8fafc;
+            cursor: pointer;
+            margin-top: -6px;
+        }
+        .dark input[type="range"]::-webkit-slider-thumb {
+            border-color: #0f172a;
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background-color: #ec4899;
+            border-radius: 9999px;
+            border: 2px solid #f8fafc;
+            cursor: pointer;
+        }
+        .dark input[type="range"]::-moz-range-thumb {
+            border-color: #0f172a;
+        }
         .screen { display: none; }
         .screen.active { display: block; }
-        textarea { width: 100%; height: 180px; padding: 16px; border: 1px solid #334155; border-radius: 12px; background: #1e293b; color: #fff; font-size: 16px; resize: none; margin-bottom: 12px; }
-        textarea:focus { outline: none; border-color: #ec4899; }
-        textarea::placeholder { color: #64748b; }
-        .hint { font-size: 0.75rem; color: #64748b; margin-bottom: 16px; line-height: 1.4; }
-        .section { background: #1e293b; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
-        .section-title { font-size: 0.7rem; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
-        .row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        .row:last-child { margin-bottom: 0; }
-        .row label { font-size: 0.85rem; color: #94a3b8; }
-        .row input[type="range"] { width: 100px; accent-color: #ec4899; }
-        .row .val { min-width: 40px; text-align: right; color: #ec4899; font-weight: 600; font-size: 0.85rem; }
-        .row-input { display: flex; gap: 10px; margin-bottom: 10px; }
-        .row-input input[type="text"] { flex: 1; padding: 10px 12px; border: 1px solid #334155; border-radius: 8px; background: #0f172a; color: #fff; font-size: 0.9rem; }
-        .row-input input[type="text"]:focus { outline: none; border-color: #ec4899; }
-        .row-input input[type="text"]::placeholder { color: #64748b; }
-        select { width: 100%; padding: 12px; border-radius: 8px; border: none; background: #0f172a; color: #fff; font-size: 0.9rem; }
-        .btn-start { width: 100%; padding: 16px; font-size: 1rem; font-weight: 600; border: none; border-radius: 12px; background: linear-gradient(135deg, #ec4899, #be185d); color: #fff; cursor: pointer; margin-bottom: 10px; }
-        .btn-start:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
-        .btn-ia { width: 100%; padding: 14px; font-size: 0.95rem; font-weight: 600; border: none; border-radius: 12px; background: linear-gradient(135deg, #8b5cf6, #6d28d9); color: #fff; cursor: pointer; margin-bottom: 10px; }
-        .btn-ia:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
-        .btn-preview { width: 100%; padding: 10px; border: 1px solid #334155; border-radius: 8px; background: transparent; color: #ec4899; cursor: pointer; font-size: 0.8rem; margin-top: 8px; }
-        .btn-preview:disabled { opacity: 0.5; }
-        .error { background: #450a0a; border: 1px solid #dc2626; border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 0.85rem; }
-        .success { background: #052e16; border: 1px solid #22c55e; border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 0.85rem; }
-        .voice-info { font-size: 0.85rem; color: #94a3b8; margin-bottom: 8px; }
-        .voice-name { color: #ec4899; font-weight: 600; }
-        .phrase-box { background: #1e293b; border-radius: 16px; padding: 30px 20px; min-height: 160px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; margin-bottom: 20px; }
-        .video-counter { font-size: 0.75rem; color: #ec4899; margin-bottom: 6px; font-weight: 600; }
-        .phrase-counter { font-size: 0.8rem; color: #64748b; margin-bottom: 10px; }
-        .phrase-text { font-size: 1.3rem; line-height: 1.5; }
-        .rep-indicator { font-size: 0.75rem; color: #ec4899; margin-top: 10px; }
-        .status-bar { display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 20px; font-size: 0.8rem; color: #64748b; }
-        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #334155; }
+        .status-dot { width: 10px; height: 10px; border-radius: 9999px; background: #334155; }
         .status-dot.speaking { background: #4ade80; animation: pulse 1s infinite; }
         .status-dot.waiting { background: #fbbf24; }
         .status-dot.paused { background: #ec4899; }
@@ -51,102 +82,186 @@
         .status-dot.finished { background: #ec4899; }
         .status-dot.generating { background: #8b5cf6; animation: pulse 0.5s infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-        .progress { height: 3px; background: #334155; border-radius: 2px; margin-bottom: 24px; overflow: hidden; }
-        .progress-fill { height: 100%; background: #ec4899; transition: width 0.3s; }
-        .controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
-        .btn-ctrl { padding: 16px 8px; border: none; border-radius: 12px; background: #1e293b; color: #fff; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 0.7rem; color: #94a3b8; }
-        .btn-ctrl:active { transform: scale(0.95); background: #334155; }
-        .btn-ctrl .icon { font-size: 1.3rem; }
-        .btn-ctrl.primary { background: linear-gradient(135deg, #ec4899, #be185d); grid-column: span 3; padding: 20px; font-size: 0.9rem; color: #fff; }
-        .btn-ctrl.primary .icon { font-size: 1.6rem; }
-        .btn-ctrl.next-video { background: linear-gradient(135deg, #22c55e, #16a34a); grid-column: span 3; padding: 24px; font-size: 1rem; color: #fff; }
-        .btn-ctrl.next-video .icon { font-size: 1.8rem; }
-        .btn-back { width: 100%; padding: 12px; border: 1px solid #334155; border-radius: 10px; background: transparent; color: #64748b; cursor: pointer; font-size: 0.85rem; }
-        .video-progress { display: flex; justify-content: center; gap: 6px; margin-bottom: 16px; }
-        .video-dot { width: 10px; height: 10px; border-radius: 50%; background: #334155; }
+        .video-dot { width: 12px; height: 12px; border-radius: 9999px; background: #334155; }
         .video-dot.done { background: #22c55e; }
         .video-dot.current { background: #ec4899; animation: pulse 1s infinite; }
-        .loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; }
-        .loading-overlay h2 { margin-bottom: 20px; font-size: 1.2rem; }
-        .loading-overlay p { color: #64748b; font-size: 0.9rem; margin-bottom: 10px; }
-        .loading-bar { width: 200px; height: 6px; background: #334155; border-radius: 3px; overflow: hidden; }
-        .loading-bar-fill { height: 100%; background: #ec4899; transition: width 0.3s; }
     </style>
 </head>
-<body>
-    <div class="container">
-        <div id="setup" class="screen active">
-            <h1>🎧 Teleprompter Auditivo</h1>
-            <div id="error" class="error" style="display:none"></div>
-            <div id="success" class="success" style="display:none"></div>
-            
-            <div class="section">
-                <div class="section-title">Datos del vídeo</div>
-                <div class="row-input">
-                    <input type="text" id="inmobiliaria" placeholder="Nombre inmobiliaria">
-                    <input type="text" id="ciudad" placeholder="Ciudad">
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-700 dark:text-slate-300 antialiased">
+    <div class="flex flex-col items-center justify-center min-h-screen p-4 sm:p-6 lg:p-8">
+        
+        <!-- SETUP SCREEN -->
+        <div id="setup" class="screen active w-full max-w-7xl">
+            <header class="w-full mb-8">
+                <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-3xl text-slate-500 dark:text-slate-400">headphones</span>
+                    <h1 class="text-2xl font-semibold text-slate-800 dark:text-slate-100">Teleprompter Auditivo</h1>
                 </div>
-            </div>
-            
-            <textarea id="script" placeholder="Pega tu guion en bruto aquí...
+            </header>
 
-Luego pulsa 'Procesar con IA' para optimizarlo automáticamente."></textarea>
-            <div class="hint">💡 Pega el guion de Gemini tal cual. Claude lo optimizará: mejora redacción, corta frases, decide repeticiones.</div>
-            
-            <button id="btnIA" class="btn-ia" disabled>✨ Procesar con IA</button>
-            
-            <div class="section">
-                <div class="voice-info">Voz: <span class="voice-name" id="voiceName">Cargando...</span></div>
-                <select id="voiceSelect" style="display:none"></select>
-                <button id="btnPreview" class="btn-preview" disabled>🔊 Escuchar voz</button>
-            </div>
-            
-            <div class="section">
-                <div class="section-title">Configuración</div>
-                <div class="row"><label>Velocidad</label><input type="range" id="speed" min="0.5" max="1.5" step="0.1" value="1"><span class="val" id="speedVal">1x</span></div>
-                <div class="row"><label>Estabilidad</label><input type="range" id="stability" min="0" max="1" step="0.1" value="0.2"><span class="val" id="stabilityVal">0.2</span></div>
-                <div class="row"><label>Expresividad</label><input type="range" id="similarity" min="0" max="1" step="0.1" value="0.5"><span class="val" id="similarityVal">0.5</span></div>
-            </div>
-            
-            <div class="section">
-                <div class="section-title">Pausas entre frases</div>
-                <div class="row"><label>Multiplicador</label><input type="range" id="mult" min="0.5" max="3" step="0.25" value="1"><span class="val" id="multVal">1x</span></div>
-            </div>
-            
-            <button id="btnStart" class="btn-start" disabled>▶ Preparar y empezar</button>
+            <div id="error" class="hidden w-full mb-4 bg-red-900/50 border border-red-500 rounded-lg p-4 text-sm text-red-200"></div>
+            <div id="success" class="hidden w-full mb-4 bg-green-900/50 border border-green-500 rounded-lg p-4 text-sm text-green-200"></div>
+
+            <main class="w-full flex flex-col lg:flex-row gap-6">
+                <!-- Left Column: Script -->
+                <div class="flex-grow lg:w-3/5">
+                    <div class="bg-white dark:bg-slate-800/50 p-6 rounded-lg shadow-sm h-full flex flex-col">
+                        <label class="text-sm font-semibold uppercase text-slate-500 dark:text-slate-400 mb-4" for="script">Pega tu guion en bruto aquí...</label>
+                        <textarea id="script" class="w-full flex-grow min-h-[300px] bg-slate-100 dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-700 dark:text-slate-300 p-4 resize-none" placeholder="Luego pulsa 'Procesar con IA' para optimizarlo automáticamente."></textarea>
+                        <p class="mt-4 text-xs text-slate-500 dark:text-slate-400 flex items-start gap-2">
+                            <span class="material-symbols-outlined text-sm text-yellow-500">lightbulb</span>
+                            <span>Pega el guion de Gemini tal cual. Claude lo optimizará: mejora redacción, corta frases, decide repeticiones.</span>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Right Column: Settings -->
+                <div class="lg:w-2/5 flex flex-col gap-6">
+                    <!-- Datos del vídeo -->
+                    <div class="bg-white dark:bg-slate-800/50 p-6 rounded-lg shadow-sm">
+                        <h2 class="text-sm font-semibold uppercase text-slate-500 dark:text-slate-400 mb-4">DATOS DEL VÍDEO</h2>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <input id="inmobiliaria" type="text" class="w-full bg-slate-100 dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-700 focus:ring-primary focus:border-primary placeholder-slate-400 dark:placeholder-slate-500 px-4 py-2" placeholder="Nombre inmobiliaria">
+                            <input id="ciudad" type="text" class="w-full bg-slate-100 dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-700 focus:ring-primary focus:border-primary placeholder-slate-400 dark:placeholder-slate-500 px-4 py-2" placeholder="Ciudad">
+                        </div>
+                    </div>
+
+                    <!-- Botón Procesar IA -->
+                    <button id="btnIA" disabled class="w-full bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 disabled:text-slate-600 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors">
+                        <span class="material-symbols-outlined text-yellow-400 text-lg">auto_awesome</span>
+                        Procesar con IA
+                    </button>
+
+                    <!-- Voz -->
+                    <div class="bg-white dark:bg-slate-800/50 p-6 rounded-lg shadow-sm">
+                        <p class="text-sm text-slate-500 dark:text-slate-400">Voz: <span id="voiceName" class="font-semibold text-primary">Cargando...</span></p>
+                        <div class="relative mt-4">
+                            <select id="voiceSelect" class="w-full appearance-none bg-slate-100 dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 px-4 py-2.5" style="display:none"></select>
+                            <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">expand_more</span>
+                        </div>
+                        <button id="btnPreview" disabled class="mt-4 w-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-600 dark:text-slate-300 font-semibold py-2.5 px-4 rounded border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-2 transition-colors">
+                            <span class="material-symbols-outlined text-primary">graphic_eq</span>
+                            Escuchar voz
+                        </button>
+                    </div>
+
+                    <!-- Configuración -->
+                    <div class="bg-white dark:bg-slate-800/50 p-6 rounded-lg shadow-sm">
+                        <h2 class="text-sm font-semibold uppercase text-slate-500 dark:text-slate-400 mb-6">CONFIGURACIÓN</h2>
+                        <div class="space-y-6">
+                            <div class="flex items-center justify-between gap-4">
+                                <label class="text-sm w-24">Velocidad</label>
+                                <input id="speed" type="range" min="0.5" max="1.5" step="0.1" value="1" class="w-full h-1 rounded-lg appearance-none cursor-pointer">
+                                <span id="speedVal" class="text-sm font-semibold w-8 text-right text-primary">1x</span>
+                            </div>
+                            <div class="flex items-center justify-between gap-4">
+                                <label class="text-sm w-24">Estabilidad</label>
+                                <input id="stability" type="range" min="0" max="1" step="0.1" value="0.2" class="w-full h-1 rounded-lg appearance-none cursor-pointer">
+                                <span id="stabilityVal" class="text-sm font-semibold w-8 text-right text-primary">0.2</span>
+                            </div>
+                            <div class="flex items-center justify-between gap-4">
+                                <label class="text-sm w-24">Expresividad</label>
+                                <input id="similarity" type="range" min="0" max="1" step="0.1" value="0.5" class="w-full h-1 rounded-lg appearance-none cursor-pointer">
+                                <span id="similarityVal" class="text-sm font-semibold w-8 text-right text-primary">0.5</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pausas -->
+                    <div class="bg-white dark:bg-slate-800/50 p-6 rounded-lg shadow-sm">
+                        <h2 class="text-sm font-semibold uppercase text-slate-500 dark:text-slate-400 mb-6">PAUSAS ENTRE FRASES</h2>
+                        <div class="flex items-center justify-between gap-4">
+                            <label class="text-sm w-24">Multiplicador</label>
+                            <input id="mult" type="range" min="0.5" max="3" step="0.25" value="1" class="w-full h-1 rounded-lg appearance-none cursor-pointer">
+                            <span id="multVal" class="text-sm font-semibold w-8 text-right text-primary">1x</span>
+                        </div>
+                    </div>
+
+                    <!-- Botón Empezar -->
+                    <button id="btnStart" disabled class="w-full bg-primary hover:bg-pink-600 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors">
+                        <span class="material-symbols-outlined text-lg">play_arrow</span>
+                        Preparar y empezar
+                    </button>
+                </div>
+            </main>
         </div>
-        
-        <div id="player" class="screen">
-            <div class="video-progress" id="videoProgress"></div>
-            <div class="phrase-box">
-                <div class="video-counter" id="videoCounter">Vídeo 1 de 1</div>
-                <div class="phrase-counter" id="counter">1 / 1</div>
-                <div class="phrase-text" id="phraseText"></div>
-                <div class="rep-indicator" id="repInd"></div>
+
+        <!-- PLAYER SCREEN -->
+        <div id="player" class="screen w-full max-w-2xl">
+            <header class="w-full mb-8">
+                <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-3xl text-slate-500 dark:text-slate-400">headphones</span>
+                    <h1 class="text-2xl font-semibold text-slate-800 dark:text-slate-100">Teleprompter Auditivo</h1>
+                </div>
+            </header>
+
+            <!-- Video Progress Dots -->
+            <div id="videoProgress" class="flex justify-center gap-2 mb-6"></div>
+
+            <!-- Phrase Box -->
+            <div class="bg-white dark:bg-slate-800/50 rounded-xl p-8 mb-6 shadow-sm">
+                <div id="videoCounter" class="text-xs font-semibold text-primary text-center mb-2">Vídeo 1 de 1</div>
+                <div id="counter" class="text-sm text-slate-500 dark:text-slate-400 text-center mb-4">1 / 1</div>
+                <div id="phraseText" class="text-xl leading-relaxed text-center text-slate-800 dark:text-slate-100 min-h-[80px] flex items-center justify-center"></div>
+                <div id="repInd" class="text-xs text-primary text-center mt-4"></div>
             </div>
-            <div class="status-bar"><div class="status-dot" id="statusDot"></div><span id="statusText">Listo</span></div>
-            <div class="progress"><div class="progress-fill" id="progressFill"></div></div>
-            
-            <div class="controls" id="controlsNormal">
-                <button class="btn-ctrl" id="btnPrev"><span class="icon">⏮</span>Anterior</button>
-                <button class="btn-ctrl" id="btnRepeat"><span class="icon">↻</span>Repetir</button>
-                <button class="btn-ctrl" id="btnNext"><span class="icon">⏭</span>Siguiente</button>
-                <button class="btn-ctrl primary" id="btnPlayPause"><span class="icon">⏸</span><span id="ppText">Pausar</span></button>
+
+            <!-- Status Bar -->
+            <div class="flex justify-center items-center gap-2 mb-4 text-sm text-slate-500 dark:text-slate-400">
+                <div id="statusDot" class="status-dot"></div>
+                <span id="statusText">Listo</span>
             </div>
-            
-            <div class="controls" id="controlsNextVideo" style="display:none">
-                <button class="btn-ctrl next-video" id="btnNextVideo"><span class="icon">▶</span><span>Siguiente vídeo</span></button>
+
+            <!-- Progress Bar -->
+            <div class="h-1 bg-slate-200 dark:bg-slate-700 rounded-full mb-8 overflow-hidden">
+                <div id="progressFill" class="h-full bg-primary transition-all duration-300" style="width: 0%"></div>
             </div>
-            
-            <button class="btn-back" id="btnBack">← Volver</button>
+
+            <!-- Controls Normal -->
+            <div id="controlsNormal" class="grid grid-cols-3 gap-3 mb-4">
+                <button id="btnPrev" class="bg-white dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg p-4 flex flex-col items-center gap-2 transition-colors">
+                    <span class="material-symbols-outlined text-2xl text-slate-600 dark:text-slate-300">skip_previous</span>
+                    <span class="text-xs text-slate-500 dark:text-slate-400">Anterior</span>
+                </button>
+                <button id="btnRepeat" class="bg-white dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg p-4 flex flex-col items-center gap-2 transition-colors">
+                    <span class="material-symbols-outlined text-2xl text-slate-600 dark:text-slate-300">replay</span>
+                    <span class="text-xs text-slate-500 dark:text-slate-400">Repetir</span>
+                </button>
+                <button id="btnNext" class="bg-white dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg p-4 flex flex-col items-center gap-2 transition-colors">
+                    <span class="material-symbols-outlined text-2xl text-slate-600 dark:text-slate-300">skip_next</span>
+                    <span class="text-xs text-slate-500 dark:text-slate-400">Siguiente</span>
+                </button>
+                <button id="btnPlayPause" class="col-span-3 bg-primary hover:bg-pink-600 text-white rounded-lg p-5 flex items-center justify-center gap-3 transition-colors">
+                    <span class="icon material-symbols-outlined text-3xl">pause</span>
+                    <span id="ppText" class="font-semibold">Pausar</span>
+                </button>
+            </div>
+
+            <!-- Controls Next Video -->
+            <div id="controlsNextVideo" class="hidden mb-4">
+                <button id="btnNextVideo" class="w-full bg-green-500 hover:bg-green-600 text-white rounded-lg p-6 flex items-center justify-center gap-3 transition-colors">
+                    <span class="icon material-symbols-outlined text-3xl">play_arrow</span>
+                    <span class="font-semibold text-lg">Siguiente vídeo</span>
+                </button>
+            </div>
+
+            <!-- Back Button -->
+            <button id="btnBack" class="w-full bg-transparent hover:bg-slate-800/50 border border-slate-300 dark:border-slate-700 text-slate-500 dark:text-slate-400 rounded-lg py-3 flex items-center justify-center gap-2 transition-colors">
+                <span class="material-symbols-outlined">arrow_back</span>
+                Volver
+            </button>
         </div>
-        
-        <div id="loadingOverlay" class="loading-overlay" style="display:none">
-            <h2 id="loadingTitle">Procesando...</h2>
-            <p id="loadingText">Preparando guion...</p>
-            <div class="loading-bar"><div class="loading-bar-fill" id="loadingBar"></div></div>
+
+        <!-- LOADING OVERLAY -->
+        <div id="loadingOverlay" class="fixed inset-0 bg-background-dark/95 flex flex-col items-center justify-center z-50" style="display:none">
+            <h2 id="loadingTitle" class="text-xl font-semibold text-slate-100 mb-4">Procesando...</h2>
+            <p id="loadingText" class="text-slate-400 mb-6">Preparando guion...</p>
+            <div class="w-48 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                <div id="loadingBar" class="h-full bg-primary transition-all duration-300" style="width: 0%"></div>
+            </div>
         </div>
     </div>
+
 <script>
 const API_ELEVENLABS = 'https://elevenlabs-proxy.ajnietoc.workers.dev';
 const API_CLAUDE = 'https://claude-guiones.ajnietoc.workers.dev';
@@ -156,9 +271,9 @@ let cfg={speed:1,stability:0.2,similarity:0.5,mult:1,voiceId:null,voiceName:''};
 let guionProcesado=false;
 
 const $=id=>document.getElementById(id);
-const showErr=m=>{$('error').textContent=m;$('error').style.display='block';$('success').style.display='none';};
-const hideErr=()=>$('error').style.display='none';
-const showSuccess=m=>{$('success').textContent=m;$('success').style.display='block';$('error').style.display='none';};
+const showErr=m=>{$('error').textContent=m;$('error').classList.remove('hidden');$('success').classList.add('hidden');};
+const hideErr=()=>$('error').classList.add('hidden');
+const showSuccess=m=>{$('success').textContent=m;$('success').classList.remove('hidden');$('error').classList.add('hidden');};
 
 function playBeep(){
     const ctx=new(window.AudioContext||window.webkitAudioContext)();
@@ -246,7 +361,6 @@ function parseGuionProcesado(text){
     for(var i=0;i<lines.length;i++){
         var line=lines[i];
         
-        // Detectar separador de video
         if(line==='---'||line==='***'){
             if(currentVideo.length>0){
                 vids.push({phrases:currentVideo,reps:currentReps});
@@ -256,7 +370,6 @@ function parseGuionProcesado(text){
             continue;
         }
         
-        // Parsear [1x] o [2x]
         var match=line.match(/^\[(\d)x\]\s*(.+)$/);
         if(match){
             currentReps.push(parseInt(match[1]));
@@ -327,7 +440,7 @@ function updateUI(){
 
 function showNextVideoButton(){
     $('controlsNormal').style.display='none';
-    $('controlsNextVideo').style.display='grid';
+    $('controlsNextVideo').style.display='block';
     setStatus('finished');
     playBeep();
 }
@@ -364,7 +477,7 @@ async function playPhrase(){
                 }else{
                     setStatus('');
                     $('ppText').textContent='Reiniciar';
-                    $('btnPlayPause').querySelector('.icon').textContent='▶';
+                    $('btnPlayPause').querySelector('.icon').textContent='play_arrow';
                     playBeep();
                 }
             }
@@ -382,7 +495,7 @@ function startVideo(vIdx){
     updateUI();
     playing=true;paused=false;
     $('ppText').textContent='Pausar';
-    $('btnPlayPause').querySelector('.icon').textContent='⏸';
+    $('btnPlayPause').querySelector('.icon').textContent='pause';
     playPhrase();
 }
 
@@ -396,9 +509,9 @@ $('mult').addEventListener('input',function(e){cfg.mult=parseFloat(e.target.valu
 $('btnIA').addEventListener('click',procesarConIA);
 
 $('btnPreview').addEventListener('click',async function(){
-    $('btnPreview').disabled=true;$('btnPreview').textContent='Generando...';
-    try{var url=await genSpeech('Hola, esta es una prueba de voz.');var a=new Audio(url);a.onended=function(){$('btnPreview').disabled=false;$('btnPreview').textContent='🔊 Escuchar voz';};a.play();}
-    catch(e){showErr(e.message);$('btnPreview').disabled=false;$('btnPreview').textContent='🔊 Escuchar voz';}
+    $('btnPreview').disabled=true;$('btnPreview').innerHTML='<span class="material-symbols-outlined text-primary animate-spin">progress_activity</span> Generando...';
+    try{var url=await genSpeech('Hola, esta es una prueba de voz.');var a=new Audio(url);a.onended=function(){$('btnPreview').disabled=false;$('btnPreview').innerHTML='<span class="material-symbols-outlined text-primary">graphic_eq</span> Escuchar voz';};a.play();}
+    catch(e){showErr(e.message);$('btnPreview').disabled=false;$('btnPreview').innerHTML='<span class="material-symbols-outlined text-primary">graphic_eq</span> Escuchar voz';}
 });
 
 $('btnStart').addEventListener('click',async function(){
@@ -406,7 +519,6 @@ $('btnStart').addEventListener('click',async function(){
     if(!videos.length||!videos[0].phrases.length){showErr('No hay guiones');return;}
     cache={};hideErr();
     
-    // Pre-generar todo
     try{
         await preGenerarTodo();
         hideLoading();
@@ -425,8 +537,8 @@ $('btnNextVideo').addEventListener('click',function(){
 
 $('btnPlayPause').addEventListener('click',function(){
     if(!playing){startVideo(videoIdx);}
-    else if(paused){paused=false;$('ppText').textContent='Pausar';$('btnPlayPause').querySelector('.icon').textContent='⏸';playPhrase();}
-    else{paused=true;stopAudio();setStatus('paused');$('ppText').textContent='Continuar';$('btnPlayPause').querySelector('.icon').textContent='▶';}
+    else if(paused){paused=false;$('ppText').textContent='Pausar';$('btnPlayPause').querySelector('.icon').textContent='pause';playPhrase();}
+    else{paused=true;stopAudio();setStatus('paused');$('ppText').textContent='Continuar';$('btnPlayPause').querySelector('.icon').textContent='play_arrow';}
 });
 
 $('btnPrev').addEventListener('click',function(){stopAudio();idx=Math.max(0,idx-1);rep=0;updateUI();if(playing&&!paused)playPhrase();});
