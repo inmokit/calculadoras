@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html class="dark" lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Editor de Stories</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            primary: '#E11D48',
+            "background-dark": "#111827",
+          },
+          fontFamily: {
+            display: ["Roboto", "sans-serif"],
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body, #root { height: 100%; }
+    .thumbnail-item { transition: transform 0.15s, opacity 0.15s; }
+    .thumbnail-item.dragging { opacity: 0.5; transform: scale(0.95); }
+    .material-icons { font-size: 20px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <script type="text/babel">
+    const { useState, useRef, useEffect } = React;
+
+    function StoriesEditor() {
+      const DAYS = ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'];
+      const FONTS = [
+        { id: 'instagram', name: 'Instagram', fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif', fontWeight: 700 },
+        { id: 'classic', name: 'Classic', fontFamily: 'Georgia, serif', fontWeight: 700 },
+        { id: 'strong', name: 'Strong', fontFamily: 'Impact, sans-serif', fontWeight: 900 },
+        { id: 'typewriter', name: 'Typewriter', fontFamily: 'Courier New, monospace', fontWeight: 700 }
+      ];
+      const DRAW_COLORS = ['#FFFFFF', '#000000', '#FF3B30', '#FF9500', '#FFCC00', '#34C759', '#007AFF', '#AF52DE', '#FF2D55', '#00FFFF', '#FF00FF', '#00FF00'];
+      const TEXT_COLORS = ['#FFFFFF', '#000000', '#FF3B30', '#FFCC00', '#34C759', '#007AFF'];
+      const MAX_CHARS_WIDE = 40;
+      const MAX_CHARS_NARROW = 25;
+
+      const [stories, setStories] = useState(DAYS.map(day => ({ day, slots: [null, null, null, null], texts: [[], [], [], []], drawings: [[], [], [], []], overlays: [[], [], [], []] })));
+      const [activeDayIdx, setActiveDayIdx] = useState(0);
+      const [activeSlotIdx, setActiveSlotIdx] = useState(0);
+      const [selectedElements, setSelectedElements] = useState([]);
+      const [selectedDrawingId, setSelectedDrawingId] = useState(null);
+      const [selectedThumbIdx, setSelectedThumbIdx] = useState(null);
+      const [tool, setTool] = useState('select');
+      const [drawColor, setDrawColor] = useState('#FFFFFF');
+      const [brushStyle, setBrushStyle] = useState('normal');
+      const [brushTip, setBrushTip] = useState('normal');
+      const [brushSize, setBrushSize] = useState(5);
+      const [isDrawing, setIsDrawing] = useState(false);
+      const [currentPath, setCurrentPath] = useState([]);
+      const [guionText, setGuionText] = useState('');
+      const [draggedThumb, setDraggedThumb] = useState(null);
+
+      const fileInputRef = useRef(null);
+      const overlayInputRef = useRef(null);
+      const canvasRef = useRef(null);
+
+      const currentStory = stories[activeDayIdx];
+      const currentImage = currentStory.slots[activeSlotIdx];
+      const currentTexts = currentStory.texts[activeSlotIdx];
+      const currentDrawings = currentStory.drawings[activeSlotIdx];
+      const currentOverlays = currentStory.overlays[activeSlotIdx];
+
+      useEffect(() => {
+        const handleKeyDown = (e) => {
+          if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
+          
+          if (e.key === 'Delete' || e.key === 'Backspace') {
+            e.preventDefault();
+            if (selectedElements.length > 0) deleteSelected();
+            else if (selectedDrawingId) deleteDrawing(selectedDrawingId);
+            else if (selectedThumbIdx !== null) deleteSlot(selectedThumbIdx);
+          }
+          
+          if (e.key === ' ') {
+            e.preventDefault();
+            if (selectedElements.length > 0) {
+              selectedElements.forEach(sel => {
+                if (sel.type === 'text') {
+                  const text = currentTexts.find(t => t.id === sel.id);
+                  if (text) {
+                    const isWide = text.maxChars === MAX_CHARS_WIDE;
+                    updateText(sel.id, { maxChars: isWide ? MAX_CHARS_NARROW : MAX_CHARS_WIDE });
+                  }
+                }
+              });
+            } else if (selectedDrawingId) {
+              const drawing = currentDrawings.find(d => d.id === selectedDrawingId);
+              if (drawing) {
+                updateDrawing(selectedDrawingId, { style: drawing.style === 'neon' ? 'normal' : 'neon' });
+              }
+            }
+          }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+      }, [selectedElements, selectedDrawingId, selectedThumbIdx, activeDayIdx, activeSlotIdx, currentTexts, currentDrawings]);
+
+      useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        
+        const handleWheel = (e) => {
+          const delta = e.deltaY > 0 ? -1 : 1;
+          
+          if (selectedDrawingId) {
+            e.preventDefault();
+            const drawing = currentDrawings.find(d => d.id === selectedDrawingId);
+            if (drawing) updateDrawing(selectedDrawingId, { size: Math.max(2, Math.min(30, drawing.size + delta)) });
+            return;
+          }
+          
+          if (selectedElements.length > 0) {
+            e.preventDefault();
+            selectedElements.forEach(sel => {
+              if (sel.type === 'text') {
+                const text = currentTexts.find(t => t.id === sel.id);
+                if (text) {
+                  if (e.ctrlKey || e.metaKey) {
+                    const newTexts = currentTexts.map(t => t.id === sel.id ? { ...t, rotation: ((t.rotation || 0) + delta * 5 + 360) % 360 } : t);
+                    updateStory(activeDayIdx, 'texts', activeSlotIdx, newTexts);
+                  } else if (e.shiftKey) {
+                    const currentOpacity = text.bgOpacity ?? 1;
+                    const newTexts = currentTexts.map(t => t.id === sel.id ? { ...t, bgOpacity: Math.max(0, Math.min(1, currentOpacity + delta * 0.1)) } : t);
+                    updateStory(activeDayIdx, 'texts', activeSlotIdx, newTexts);
+                  } else {
+                    const newTexts = currentTexts.map(t => t.id === sel.id ? { ...t, fontSize: Math.max(14, Math.min(72, t.fontSize + delta * 2)) } : t);
+                    updateStory(activeDayIdx, 'texts', activeSlotIdx, newTexts);
+                  }
+                }
+              } else if (sel.type === 'overlay') {
+                const overlay = currentOverlays.find(o => o.id === sel.id);
+                if (overlay) {
+                  const newW = Math.max(30, overlay.width + delta * 8);
+                  const newH = newW / overlay.aspectRatio;
+                  const newOverlays = currentOverlays.map(o => o.id === sel.id ? { ...o, width: newW, height: newH } : o);
+                  updateStory(activeDayIdx, 'overlays', activeSlotIdx, newOverlays);
+                }
+              }
+            });
+          }
+        };
+        canvas.addEventListener('wheel', handleWheel, { passive: false });
+        return () => canvas.removeEventListener('wheel', handleWheel);
+      }, [selectedElements, selectedDrawingId, currentTexts, currentOverlays, currentDrawings, activeDayIdx, activeSlotIdx]);
+
+      const updateStory = (dayIdx, field, slotIdx, value) => {
+        setStories(prev => { 
+          const newStories = [...prev]; 
+          const newData = [...newStories[dayIdx][field]]; 
+          newData[slotIdx] = value; 
+          newStories[dayIdx] = { ...newStories[dayIdx], [field]: newData }; 
+          return newStories; 
+        });
+      };
+
+      const handleImageUpload = (e) => {
+        Array.from(e.target.files).forEach((file, i) => {
+          if (activeSlotIdx + i < 4) {
+            const reader = new FileReader();
+            reader.onload = (ev) => updateStory(activeDayIdx, 'slots', activeSlotIdx + i, ev.target.result);
+            reader.readAsDataURL(file);
+          }
+        });
+      };
+
+      const handleOverlayUpload = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            const img = new Image();
+            img.onload = () => {
+              const aspectRatio = img.width / img.height;
+              const newOverlay = { 
+                id: Date.now().toString(), 
+                src: ev.target.result, 
+                x: 140, 
+                y: 250, 
+                width: 120, 
+                height: 120 / aspectRatio,
+                aspectRatio 
+              };
+              updateStory(activeDayIdx, 'overlays', activeSlotIdx, [...currentOverlays, newOverlay]);
+              setSelectedElements([{ type: 'overlay', id: newOverlay.id }]);
+            };
+            img.src = ev.target.result;
+          };
+          reader.readAsDataURL(file);
+        }
+        e.target.value = '';
+      };
+
+      const addTextsFromGuion = () => {
+        const lines = guionText.split('\n').filter(l => l.trim());
+        if (lines.length === 0) return;
+        
+        const newTexts = [];
+        const newDrawings = [];
+        const font = FONTS[0];
+        
+        // Paleta de colores con buen contraste
+        const colorSchemes = [
+          { bg: '#FFCC00', color: '#000000' }, // Amarillo/Negro
+          { bg: '#FFFFFF', color: '#000000' }, // Blanco/Negro
+          { bg: '#FF3B30', color: '#FFFFFF' }, // Rojo/Blanco
+          { bg: '#000000', color: '#FFFFFF' }, // Negro/Blanco
+          { bg: '#007AFF', color: '#FFFFFF' }, // Azul/Blanco
+          { bg: '#34C759', color: '#000000' }, // Verde/Negro
+        ];
+        
+        // Posiciones Y distribuidas (arriba, medio, abajo)
+        const positions = [
+          { y: 80, fontSize: 28 },   // Arriba - grande
+          { y: 280, fontSize: 20 },  // Medio-alto - pequeño
+          { y: 480, fontSize: 32 },  // Abajo - muy grande
+        ];
+        
+        // Posiciones X variadas
+        const xPositions = [120, 180, 140];
+        
+        // Crear textos
+        const numTexts = Math.min(lines.length, 3);
+        for (let i = 0; i < numTexts; i++) {
+          const scheme = colorSchemes[i % colorSchemes.length];
+          const pos = positions[i % positions.length];
+          
+          newTexts.push({ 
+            id: Date.now().toString() + i, 
+            content: lines[i].trim(), 
+            x: xPositions[i % xPositions.length], 
+            y: pos.y, 
+            fontSize: pos.fontSize, 
+            color: scheme.color, 
+            bgColor: scheme.bg,
+            bgOpacity: 1,
+            fontId: font.id, 
+            fontFamily: font.fontFamily,
+            fontWeight: font.fontWeight,
+            rotation: 0, 
+            align: 'left',
+            maxChars: MAX_CHARS_NARROW // Ancho corto por defecto
+          });
+        }
+        
+        // Crear flechas conectando los textos (si hay más de 1)
+        if (numTexts >= 2) {
+          // Flecha del texto 1 al texto 2
+          const arrow1 = {
+            id: Date.now().toString() + '_arrow1',
+            path: [
+              { x: xPositions[0] + 40, y: positions[0].y + 60 },
+              { x: xPositions[0] + 50, y: positions[0].y + 90 },
+              { x: xPositions[1] - 20, y: positions[1].y - 40 },
+              { x: xPositions[1], y: positions[1].y - 20 }
+            ],
+            color: colorSchemes[0].bg,
+            size: 4,
+            style: 'normal',
+            tip: 'arrow'
+          };
+          newDrawings.push(arrow1);
+        }
+        
+        if (numTexts >= 3) {
+          // Flecha del texto 2 al texto 3
+          const arrow2 = {
+            id: Date.now().toString() + '_arrow2',
+            path: [
+              { x: xPositions[1] + 60, y: positions[1].y + 40 },
+              { x: xPositions[1] + 80, y: positions[1].y + 100 },
+              { x: xPositions[2] + 40, y: positions[2].y - 60 },
+              { x: xPositions[2] + 20, y: positions[2].y - 30 }
+            ],
+            color: colorSchemes[1].bg === '#FFFFFF' ? '#FF69B4' : colorSchemes[1].bg,
+            size: 4,
+            style: 'normal',
+            tip: 'arrow'
+          };
+          newDrawings.push(arrow2);
+        }
+        
+        updateStory(activeDayIdx, 'texts', activeSlotIdx, [...currentTexts, ...newTexts]);
+        updateStory(activeDayIdx, 'drawings', activeSlotIdx, [...currentDrawings, ...newDrawings]);
+        setSelectedElements(newTexts.map(t => ({ type: 'text', id: t.id })));
+        setGuionText('');
+      };
+
+      const updateText = (id, updates) => {
+        const newTexts = currentTexts.map(t => t.id === id ? { ...t, ...updates } : t);
+        updateStory(activeDayIdx, 'texts', activeSlotIdx, newTexts);
+      };
+
+      const updateOverlay = (id, updates) => {
+        const newOverlays = currentOverlays.map(o => o.id === id ? { ...o, ...updates } : o);
+        updateStory(activeDayIdx, 'overlays', activeSlotIdx, newOverlays);
+      };
+
+      const updateDrawing = (id, updates) => {
+        const newDrawings = currentDrawings.map(d => d.id === id ? { ...d, ...updates } : d);
+        updateStory(activeDayIdx, 'drawings', activeSlotIdx, newDrawings);
+      };
+      
+      const deleteSelected = () => {
+        const textIds = selectedElements.filter(s => s.type === 'text').map(s => s.id);
+        const overlayIds = selectedElements.filter(s => s.type === 'overlay').map(s => s.id);
+        if (textIds.length) updateStory(activeDayIdx, 'texts', activeSlotIdx, currentTexts.filter(t => !textIds.includes(t.id)));
+        if (overlayIds.length) updateStory(activeDayIdx, 'overlays', activeSlotIdx, currentOverlays.filter(o => !overlayIds.includes(o.id)));
+        setSelectedElements([]);
+      };
+
+      const deleteDrawing = (id) => {
+        updateStory(activeDayIdx, 'drawings', activeSlotIdx, currentDrawings.filter(d => d.id !== id));
+        setSelectedDrawingId(null);
+      };
+
+      const deleteSlot = (slotIdx) => {
+        updateStory(activeDayIdx, 'slots', slotIdx, null);
+        updateStory(activeDayIdx, 'texts', slotIdx, []);
+        updateStory(activeDayIdx, 'drawings', slotIdx, []);
+        updateStory(activeDayIdx, 'overlays', slotIdx, []);
+        setSelectedThumbIdx(null);
+        if (activeSlotIdx === slotIdx) setActiveSlotIdx(0);
+      };
+
+      const undoLastAction = () => {
+        if (currentDrawings.length > 0) {
+          updateStory(activeDayIdx, 'drawings', activeSlotIdx, currentDrawings.slice(0, -1));
+          setSelectedDrawingId(null);
+        } else if (currentTexts.length > 0) {
+          updateStory(activeDayIdx, 'texts', activeSlotIdx, currentTexts.slice(0, -1));
+          setSelectedElements([]);
+        } else if (currentOverlays.length > 0) {
+          updateStory(activeDayIdx, 'overlays', activeSlotIdx, currentOverlays.slice(0, -1));
+          setSelectedElements([]);
+        }
+      };
+
+      const clearAll = () => {
+        updateStory(activeDayIdx, 'texts', activeSlotIdx, []);
+        updateStory(activeDayIdx, 'drawings', activeSlotIdx, []);
+        updateStory(activeDayIdx, 'overlays', activeSlotIdx, []);
+        setSelectedElements([]);
+        setSelectedDrawingId(null);
+      };
+
+      const handleCanvasMouseDown = (e) => {
+        const rect = canvasRef.current.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        if (tool === 'draw') {
+          setIsDrawing(true);
+          setCurrentPath([{ x, y }]);
+          setSelectedElements([]);
+          setSelectedDrawingId(null);
+        } else {
+          setSelectedElements([]);
+          setSelectedDrawingId(null);
+        }
+      };
+
+      const handleCanvasMouseMove = (e) => {
+        if (!isDrawing || tool !== 'draw') return;
+        const rect = canvasRef.current.getBoundingClientRect();
+        setCurrentPath(prev => [...prev, { x: e.clientX - rect.left, y: e.clientY - rect.top }]);
+      };
+
+      const handleCanvasMouseUp = () => {
+        if (isDrawing && currentPath.length > 1) {
+          const newDrawing = { id: Date.now().toString(), path: currentPath, color: drawColor, size: brushSize, style: brushStyle, tip: brushTip };
+          updateStory(activeDayIdx, 'drawings', activeSlotIdx, [...currentDrawings, newDrawing]);
+          setSelectedDrawingId(newDrawing.id);
+        }
+        setIsDrawing(false);
+        setCurrentPath([]);
+      };
+
+      const startDrag = (type, id, e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        setSelectedElements([{ type, id }]);
+        setSelectedDrawingId(null);
+        setSelectedThumbIdx(null);
+        
+        const startMouseX = e.clientX;
+        const startMouseY = e.clientY;
+        
+        let item = type === 'text' ? currentTexts.find(t => t.id === id) : currentOverlays.find(o => o.id === id);
+        if (!item) return;
+        
+        const startX = item.x;
+        const startY = item.y;
+
+        const onMove = (ev) => {
+          const dx = ev.clientX - startMouseX;
+          const dy = ev.clientY - startMouseY;
+          const newX = startX + dx;
+          const newY = startY + dy;
+          if (type === 'text') updateText(id, { x: newX, y: newY });
+          else updateOverlay(id, { x: newX, y: newY });
+        };
+
+        const onUp = () => {
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+        };
+
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      };
+
+      const selectDrawing = (id, e) => {
+        e.stopPropagation();
+        setSelectedDrawingId(id);
+        setSelectedElements([]);
+        setSelectedThumbIdx(null);
+      };
+
+      const handleThumbDragStart = (idx) => setDraggedThumb(idx);
+      const handleThumbDragOver = (e) => e.preventDefault();
+      const handleThumbDrop = (idx) => {
+        if (draggedThumb === null || draggedThumb === idx) return;
+        const newSlots = [...currentStory.slots];
+        const newTexts = [...currentStory.texts];
+        const newDrawings = [...currentStory.drawings];
+        const newOverlays = [...currentStory.overlays];
+        [newSlots[draggedThumb], newSlots[idx]] = [newSlots[idx], newSlots[draggedThumb]];
+        [newTexts[draggedThumb], newTexts[idx]] = [newTexts[idx], newTexts[draggedThumb]];
+        [newDrawings[draggedThumb], newDrawings[idx]] = [newDrawings[idx], newDrawings[draggedThumb]];
+        [newOverlays[draggedThumb], newOverlays[idx]] = [newOverlays[idx], newOverlays[draggedThumb]];
+        setStories(prev => {
+          const newStories = [...prev];
+          newStories[activeDayIdx] = { ...newStories[activeDayIdx], slots: newSlots, texts: newTexts, drawings: newDrawings, overlays: newOverlays };
+          return newStories;
+        });
+        setDraggedThumb(null);
+      };
+
+      const renderPath = (drawing, key, isPreview = false) => {
+        const { path, color, size, style, tip } = drawing;
+        if (path.length < 2) return null;
+        
+        let d = `M ${path[0].x} ${path[0].y}`;
+        for (let i = 1; i < path.length; i++) d += ` L ${path[i].x} ${path[i].y}`;
+        
+        const isSelected = !isPreview && drawing.id === selectedDrawingId;
+        
+        let arrowHead = null;
+        if (tip === 'arrow' && path.length >= 2) {
+          const lastPoint = path[path.length - 1];
+          const prevPoint = path.length > 5 ? path[path.length - 6] : path[0];
+          const angle = Math.atan2(lastPoint.y - prevPoint.y, lastPoint.x - prevPoint.x);
+          const arrowLength = 18 + size;
+          const arrowAngle = 0.5;
+          
+          arrowHead = (
+            <path
+              d={`M ${lastPoint.x - arrowLength * Math.cos(angle - arrowAngle)} ${lastPoint.y - arrowLength * Math.sin(angle - arrowAngle)} 
+                  L ${lastPoint.x + size * Math.cos(angle)} ${lastPoint.y + size * Math.sin(angle)} 
+                  L ${lastPoint.x - arrowLength * Math.cos(angle + arrowAngle)} ${lastPoint.y - arrowLength * Math.sin(angle + arrowAngle)}`}
+              stroke={color}
+              strokeWidth={size}
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              filter={style === 'neon' ? 'url(#neonGlow)' : ''}
+            />
+          );
+        }
+        
+        return (
+          <g key={key} onClick={(e) => !isPreview && selectDrawing(drawing.id, e)} style={{ cursor: isPreview ? 'default' : 'pointer' }}>
+            {isSelected && <path d={d} stroke="rgba(0,255,255,0.5)" strokeWidth={size + 8} fill="none" strokeLinecap="round" strokeLinejoin="round" />}
+            <path d={d} stroke={color} strokeWidth={size} fill="none" strokeLinecap="round" strokeLinejoin="round" filter={style === 'neon' ? 'url(#neonGlow)' : ''} />
+            {arrowHead}
+          </g>
+        );
+      };
+
+      const splitTextIntoLines = (content, maxChars) => {
+        const words = content.split(' ');
+        const lines = [];
+        let currentLine = '';
+        
+        words.forEach(word => {
+          const testLine = currentLine ? currentLine + ' ' + word : word;
+          if (testLine.length > maxChars && currentLine) {
+            lines.push(currentLine);
+            currentLine = word;
+          } else {
+            currentLine = testLine;
+          }
+        });
+        if (currentLine) lines.push(currentLine);
+        return lines;
+      };
+
+      // Instagram-style text with connected background block using SVG path
+      const InstagramTextElement = ({ t, isSelected, onMouseDown }) => {
+        const fs = t.fontSize;
+        // Medidas exactas Instagram
+        const padH = fs * 0.39;
+        const padV = fs * 0.32;
+        const radius = fs * 0.29;
+        const lineH = fs * 1.2;
+        const bgColor = t.bgColor || '#000000';
+        const bgOpacity = t.bgOpacity ?? 1;
+        const align = t.align || 'left';
+        
+        const lines = splitTextIntoLines(t.content, t.maxChars || MAX_CHARS_WIDE);
+        
+        const [lineWidths, setLineWidths] = useState([]);
+        
+        useEffect(() => {
+          const measure = document.createElement('span');
+          measure.style.cssText = `
+            position: absolute;
+            visibility: hidden;
+            white-space: nowrap;
+            font-family: ${t.fontFamily || 'Inter, -apple-system, sans-serif'};
+            font-weight: ${t.fontWeight || 700};
+            font-size: ${fs}px;
+            letter-spacing: 0;
+          `;
+          document.body.appendChild(measure);
+          
+          const widths = lines.map(line => {
+            measure.textContent = line || ' ';
+            return measure.offsetWidth;
+          });
+          setLineWidths(widths);
+          document.body.removeChild(measure);
+        }, [t.content, fs, t.fontFamily, t.fontWeight, t.maxChars]);
+
+        const getBgColor = () => {
+          if (bgOpacity <= 0) return 'transparent';
+          if (bgOpacity >= 1) return bgColor;
+          const hex = bgColor.replace('#', '');
+          const r = parseInt(hex.substr(0, 2), 16);
+          const g = parseInt(hex.substr(2, 2), 16);
+          const b = parseInt(hex.substr(4, 2), 16);
+          return `rgba(${r},${g},${b},${bgOpacity})`;
+        };
+
+        // Build SVG path for stepped background based on alignment
+        const buildSteppedPath = () => {
+          if (lineWidths.length === 0) return '';
+          
+          const n = lineWidths.length;
+          const boxWidths = lineWidths.map(w => padH + w + padH);
+          const maxW = Math.max(...boxWidths);
+          const totalH = n * lineH + padV * 2;
+          const r = radius;
+          
+          // For left alignment: simple path with steps on right
+          if (align === 'left') {
+            let rights = [...boxWidths];
+            // Preprocess
+            for (let i = 0; i < n - 1; i++) {
+              const diff = Math.abs(rights[i] - rights[i + 1]);
+              if (diff < 20 && diff > 0) {
+                const maxR = Math.max(rights[i], rights[i + 1]);
+                rights[i] = maxR;
+                rights[i + 1] = maxR;
+              }
+            }
+            
+            let d = `M ${r} 0`;
+            d += ` L ${rights[0] - r} 0`;
+            d += ` Q ${rights[0]} 0, ${rights[0]} ${r}`;
+            
+            for (let i = 0; i < n; i++) {
+              const thisR = rights[i];
+              const lineBottom = padV + (i + 1) * lineH;
+              
+              if (i < n - 1) {
+                const nextR = rights[i + 1];
+                const diff = nextR - thisR;
+                
+                if (Math.abs(diff) < 2) {
+                  d += ` L ${thisR} ${lineBottom}`;
+                } else if (diff < 0) {
+                  const stepY = lineBottom + padV;
+                  d += ` L ${thisR} ${stepY - r}`;
+                  d += ` Q ${thisR} ${stepY}, ${thisR - r} ${stepY}`;
+                  d += ` L ${nextR + r} ${stepY}`;
+                  d += ` Q ${nextR} ${stepY}, ${nextR} ${stepY + r}`;
+                } else {
+                  const stepY = lineBottom - padV;
+                  d += ` L ${thisR} ${stepY - r}`;
+                  d += ` L ${thisR} ${stepY}`;
+                  d += ` L ${nextR - r} ${stepY}`;
+                  d += ` Q ${nextR} ${stepY}, ${nextR} ${stepY + r}`;
+                }
+              } else {
+                d += ` L ${thisR} ${totalH - r}`;
+                d += ` Q ${thisR} ${totalH}, ${thisR - r} ${totalH}`;
+              }
+            }
+            
+            d += ` L ${r} ${totalH}`;
+            d += ` Q 0 ${totalH}, 0 ${totalH - r}`;
+            d += ` L 0 ${r}`;
+            d += ` Q 0 0, ${r} 0`;
+            d += ' Z';
+            return d;
+          }
+          
+          // For right alignment: steps on left, straight on right
+          if (align === 'right') {
+            let lefts = boxWidths.map(w => maxW - w);
+            // Preprocess
+            for (let i = 0; i < n - 1; i++) {
+              const diff = Math.abs(lefts[i] - lefts[i + 1]);
+              if (diff < 20 && diff > 0) {
+                const minL = Math.min(lefts[i], lefts[i + 1]);
+                lefts[i] = minL;
+                lefts[i + 1] = minL;
+              }
+            }
+            
+            let d = `M ${lefts[0] + r} 0`;
+            d += ` L ${maxW - r} 0`;
+            d += ` Q ${maxW} 0, ${maxW} ${r}`;
+            d += ` L ${maxW} ${totalH - r}`;
+            d += ` Q ${maxW} ${totalH}, ${maxW - r} ${totalH}`;
+            d += ` L ${lefts[n-1] + r} ${totalH}`;
+            d += ` Q ${lefts[n-1]} ${totalH}, ${lefts[n-1]} ${totalH - r}`;
+            
+            // Go up on left side with steps
+            for (let i = n - 1; i >= 0; i--) {
+              const thisL = lefts[i];
+              const lineTop = padV + i * lineH;
+              
+              if (i > 0) {
+                const prevL = lefts[i - 1];
+                const diff = prevL - thisL;
+                
+                if (Math.abs(diff) < 2) {
+                  d += ` L ${thisL} ${lineTop}`;
+                } else if (diff > 0) {
+                  // Previous line starts more to the right (narrower) - step inward
+                  const stepY = lineTop - padV;
+                  d += ` L ${thisL} ${stepY + r}`;
+                  d += ` Q ${thisL} ${stepY}, ${thisL + r} ${stepY}`;
+                  d += ` L ${prevL - r} ${stepY}`;
+                  d += ` Q ${prevL} ${stepY}, ${prevL} ${stepY - r}`;
+                } else {
+                  // Previous line starts more to the left (wider) - step outward
+                  const stepY = lineTop + padV;
+                  d += ` L ${thisL} ${stepY + r}`;
+                  d += ` L ${thisL} ${stepY}`;
+                  d += ` L ${prevL + r} ${stepY}`;
+                  d += ` Q ${prevL} ${stepY}, ${prevL} ${stepY - r}`;
+                }
+              } else {
+                d += ` L ${thisL} ${r}`;
+                d += ` Q ${thisL} 0, ${thisL + r} 0`;
+              }
+            }
+            
+            d += ' Z';
+            return d;
+          }
+          
+          // For center alignment: use max width rectangle (simpler, more stable)
+          let d = `M ${r} 0`;
+          d += ` L ${maxW - r} 0`;
+          d += ` Q ${maxW} 0, ${maxW} ${r}`;
+          d += ` L ${maxW} ${totalH - r}`;
+          d += ` Q ${maxW} ${totalH}, ${maxW - r} ${totalH}`;
+          d += ` L ${r} ${totalH}`;
+          d += ` Q 0 ${totalH}, 0 ${totalH - r}`;
+          d += ` L 0 ${r}`;
+          d += ` Q 0 0, ${r} 0`;
+          d += ' Z';
+          return d;
+        };
+
+        const maxW = lineWidths.length > 0 ? Math.max(...lineWidths.map(w => padH + w + padH)) : 100;
+        const totalH = lines.length * lineH + padV * 2;
+        const path = buildSteppedPath();
+
+        return (
+          <div
+            onMouseDown={onMouseDown}
+            style={{
+              position: 'absolute',
+              left: t.x,
+              top: t.y,
+              transform: `translate(-50%, -50%) rotate(${t.rotation || 0}deg)`,
+              cursor: 'move',
+              outline: isSelected ? '2px solid #00ffff' : 'none',
+              outlineOffset: 4
+            }}
+          >
+            <div style={{ position: 'relative', display: 'inline-block', width: maxW }}>
+              {bgOpacity > 0 && lineWidths.length > 0 && (
+                <svg 
+                  style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}
+                  width={maxW}
+                  height={totalH}
+                >
+                  <path d={path} fill={getBgColor()} />
+                </svg>
+              )}
+              <div style={{ 
+                position: 'relative',
+                padding: `${padV}px ${padH}px`,
+                zIndex: 1
+              }}>
+                {lines.map((line, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      color: t.color,
+                      fontSize: fs,
+                      fontFamily: t.fontFamily || 'Inter, -apple-system, sans-serif',
+                      fontWeight: t.fontWeight || 700,
+                      lineHeight: 1.2,
+                      textAlign: align,
+                      whiteSpace: 'nowrap',
+                      letterSpacing: '0'
+                    }}
+                  >
+                    {line}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      };
+      
+      const renderInstagramText = (t) => {
+        const isSelected = selectedElements.some(s => s.type === 'text' && s.id === t.id);
+        return (
+          <InstagramTextElement
+            key={t.id}
+            t={t}
+            isSelected={isSelected}
+            onMouseDown={(e) => startDrag('text', t.id, e)}
+          />
+        );
+      };
+
+      const exportSingleStory = async (dayIdx, slotIdx) => {
+        const story = stories[dayIdx];
+        const image = story.slots[slotIdx];
+        if (!image) return null;
+
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 1080; 
+        canvas.height = 1920;
+        
+        const img = new Image();
+        await new Promise((resolve) => { img.onload = resolve; img.src = image; });
+        
+        const imgRatio = img.width / img.height;
+        const canvasRatio = canvas.width / canvas.height;
+        let drawWidth, drawHeight, drawX, drawY;
+        
+        if (imgRatio > canvasRatio) {
+          drawWidth = canvas.width;
+          drawHeight = canvas.width / imgRatio;
+          drawX = 0;
+          drawY = (canvas.height - drawHeight) / 2;
+        } else {
+          drawHeight = canvas.height;
+          drawWidth = canvas.height * imgRatio;
+          drawX = (canvas.width - drawWidth) / 2;
+          drawY = 0;
+        }
+        
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+        
+        const canvasEl = canvasRef.current;
+        const elWidth = canvasEl?.offsetWidth || 370;
+        const elHeight = canvasEl?.offsetHeight || 658;
+        const scaleX = canvas.width / elWidth;
+        const scaleY = canvas.height / elHeight;
+        
+        const texts = story.texts[slotIdx] || [];
+        const drawings = story.drawings[slotIdx] || [];
+        const overlays = story.overlays[slotIdx] || [];
+
+        for (const overlay of overlays) { 
+          const oImg = new Image(); 
+          await new Promise((resolve) => { oImg.onload = resolve; oImg.onerror = resolve; oImg.src = overlay.src; });
+          const oW = overlay.width * scaleX;
+          const oH = overlay.height * scaleY;
+          ctx.drawImage(oImg, (overlay.x * scaleX) - oW/2, (overlay.y * scaleY) - oH/2, oW, oH);
+        }
+
+        drawings.forEach(dr => { 
+          ctx.beginPath(); 
+          ctx.strokeStyle = dr.color; 
+          ctx.lineWidth = dr.size * scaleX; 
+          ctx.lineCap = 'round'; 
+          ctx.lineJoin = 'round';
+          if (dr.style === 'neon') { ctx.shadowColor = dr.color; ctx.shadowBlur = 15 * scaleX; }
+          dr.path.forEach((p, i) => { 
+            if (i === 0) ctx.moveTo(p.x * scaleX, p.y * scaleY); 
+            else ctx.lineTo(p.x * scaleX, p.y * scaleY); 
+          }); 
+          ctx.stroke();
+          
+          if (dr.tip === 'arrow' && dr.path.length >= 2) {
+            const lastPoint = dr.path[dr.path.length - 1];
+            const prevPoint = dr.path.length > 5 ? dr.path[dr.path.length - 6] : dr.path[0];
+            const angle = Math.atan2(lastPoint.y - prevPoint.y, lastPoint.x - prevPoint.x);
+            const arrowLength = (18 + dr.size) * scaleX;
+            const arrowAngle = 0.5;
+            
+            ctx.beginPath();
+            ctx.moveTo(
+              lastPoint.x * scaleX - arrowLength * Math.cos(angle - arrowAngle),
+              lastPoint.y * scaleY - arrowLength * Math.sin(angle - arrowAngle)
+            );
+            ctx.lineTo(
+              lastPoint.x * scaleX + dr.size * scaleX * Math.cos(angle),
+              lastPoint.y * scaleY + dr.size * scaleY * Math.sin(angle)
+            );
+            ctx.lineTo(
+              lastPoint.x * scaleX - arrowLength * Math.cos(angle + arrowAngle),
+              lastPoint.y * scaleY - arrowLength * Math.sin(angle + arrowAngle)
+            );
+            ctx.stroke();
+          }
+          ctx.shadowBlur = 0;
+        });
+
+        // Export texts with Instagram style (stepped background)
+        texts.forEach(t => { 
+          ctx.save(); 
+          ctx.translate(t.x * scaleX, t.y * scaleY); 
+          if (t.rotation) ctx.rotate(t.rotation * Math.PI / 180);
+          
+          const fs = t.fontSize * scaleX;
+          // Medidas exactas Instagram
+          const padH = fs * 0.39;
+          const padV = fs * 0.32;
+          const radius = fs * 0.29;
+          const lineH = fs * 1.2;
+          
+          ctx.font = `${t.fontWeight || 700} ${fs}px ${t.fontFamily || 'Inter, -apple-system, sans-serif'}`;
+          ctx.textBaseline = 'top';
+          
+          const lines = splitTextIntoLines(t.content, t.maxChars || MAX_CHARS_WIDE);
+          
+          // Measure each line width
+          const lineWidths = lines.map(line => ctx.measureText(line).width);
+          
+          // Calculate rights with preprocessing for small differences
+          let rights = lineWidths.map(w => padH + w + padH);
+          for (let i = 0; i < rights.length - 1; i++) {
+            const diff = Math.abs(rights[i] - rights[i + 1]);
+            if (diff < 20 * scaleX && diff > 0) {
+              const maxR = Math.max(rights[i], rights[i + 1]);
+              rights[i] = maxR;
+              rights[i + 1] = maxR;
+            }
+          }
+          
+          const maxRight = Math.max(...rights);
+          const totalH = lines.length * lineH + padV * 2;
+          const r = radius;
+          const n = lines.length;
+          
+          // Draw stepped background
+          const bgOpacity = t.bgOpacity ?? 1;
+          if (bgOpacity > 0) {
+            const bgColor = t.bgColor || '#000000';
+            if (bgOpacity >= 1) {
+              ctx.fillStyle = bgColor;
+            } else {
+              const hex = bgColor.replace('#', '');
+              const rr = parseInt(hex.substr(0, 2), 16);
+              const gg = parseInt(hex.substr(2, 2), 16);
+              const bb = parseInt(hex.substr(4, 2), 16);
+              ctx.fillStyle = `rgba(${rr},${gg},${bb},${bgOpacity})`;
+            }
+            
+            // Offset to center
+            const offsetX = -maxRight / 2;
+            const offsetY = -totalH / 2;
+            
+            ctx.beginPath();
+            ctx.moveTo(offsetX + r, offsetY);
+            ctx.lineTo(offsetX + rights[0] - r, offsetY);
+            ctx.quadraticCurveTo(offsetX + rights[0], offsetY, offsetX + rights[0], offsetY + r);
+            
+            for (let i = 0; i < n; i++) {
+              const thisR = rights[i];
+              const lineBottom = padV + (i + 1) * lineH;
+              
+              if (i < n - 1) {
+                const nextR = rights[i + 1];
+                const diff = nextR - thisR;
+                
+                if (Math.abs(diff) < 2) {
+                  ctx.lineTo(offsetX + thisR, offsetY + lineBottom);
+                } else if (diff < 0) {
+                  const stepY = lineBottom + padV;
+                  ctx.lineTo(offsetX + thisR, offsetY + stepY - r);
+                  ctx.quadraticCurveTo(offsetX + thisR, offsetY + stepY, offsetX + thisR - r, offsetY + stepY);
+                  ctx.lineTo(offsetX + nextR + r, offsetY + stepY);
+                  ctx.quadraticCurveTo(offsetX + nextR, offsetY + stepY, offsetX + nextR, offsetY + stepY + r);
+                } else {
+                  const stepY = lineBottom - padV;
+                  ctx.lineTo(offsetX + thisR, offsetY + stepY - r);
+                  ctx.lineTo(offsetX + thisR, offsetY + stepY);
+                  ctx.lineTo(offsetX + nextR - r, offsetY + stepY);
+                  ctx.quadraticCurveTo(offsetX + nextR, offsetY + stepY, offsetX + nextR, offsetY + stepY + r);
+                }
+              } else {
+                ctx.lineTo(offsetX + thisR, offsetY + totalH - r);
+                ctx.quadraticCurveTo(offsetX + thisR, offsetY + totalH, offsetX + thisR - r, offsetY + totalH);
+              }
+            }
+            
+            ctx.lineTo(offsetX + r, offsetY + totalH);
+            ctx.quadraticCurveTo(offsetX, offsetY + totalH, offsetX, offsetY + totalH - r);
+            ctx.lineTo(offsetX, offsetY + r);
+            ctx.quadraticCurveTo(offsetX, offsetY, offsetX + r, offsetY);
+            ctx.fill();
+          }
+          
+          // Draw text
+          ctx.fillStyle = t.color;
+          ctx.textAlign = 'left';
+          let textY = -totalH / 2 + padV;
+          lines.forEach((line, i) => {
+            const lineX = -maxRight / 2 + padH;
+            ctx.fillText(line, lineX, textY);
+            textY += lineH;
+          });
+          
+          ctx.restore();
+        });
+
+        return { dataUrl: canvas.toDataURL('image/png'), name: `${DAYS[dayIdx]}-story-${slotIdx + 1}.png` };
+      };
+
+      const exportDay = async () => {
+        const results = [];
+        for (let i = 0; i < 4; i++) {
+          const result = await exportSingleStory(activeDayIdx, i);
+          if (result) results.push(result);
+        }
+        if (results.length === 0) return alert('No hay stories para exportar');
+        if (results.length === 1) {
+          const link = document.createElement('a'); link.download = results[0].name; link.href = results[0].dataUrl; link.click();
+        } else {
+          const zip = new JSZip();
+          results.forEach(r => zip.file(r.name, r.dataUrl.split(',')[1], { base64: true }));
+          const blob = await zip.generateAsync({ type: 'blob' });
+          const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${DAYS[activeDayIdx]}-stories.zip`; a.click();
+        }
+      };
+
+      const exportAll = async () => {
+        const zip = new JSZip();
+        let count = 0;
+        for (let d = 0; d < 7; d++) {
+          for (let s = 0; s < 4; s++) {
+            const result = await exportSingleStory(d, s);
+            if (result) { zip.file(`${DAYS[d]}/${result.name}`, result.dataUrl.split(',')[1], { base64: true }); count++; }
+          }
+        }
+        if (count === 0) return alert('No hay stories');
+        const blob = await zip.generateAsync({ type: 'blob' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'todas-las-stories.zip'; a.click();
+      };
+
+      const firstSelectedText = selectedElements.find(s => s.type === 'text');
+      const selectedTextObj = firstSelectedText ? currentTexts.find(t => t.id === firstSelectedText.id) : null;
+
+      return (
+        <div className="flex flex-col h-screen bg-background-dark text-gray-300 font-display">
+          {/* HEADER */}
+          <header className="p-4 bg-gray-900/50 border-b border-gray-700 flex items-center justify-between shadow-sm">
+            <div className="flex items-center space-x-4">
+              <h1 className="text-xl font-bold text-white">Editor de Stories</h1>
+              <div className="flex items-center space-x-2">
+                {DAYS.map((day, i) => (
+                  <button 
+                    key={day} 
+                    onClick={() => { setActiveDayIdx(i); setActiveSlotIdx(0); setSelectedElements([]); setSelectedDrawingId(null); }}
+                    className={`px-4 py-2 text-sm font-medium rounded-md ${activeDayIdx === i ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-lg' : 'bg-gray-800 text-gray-300'}`}
+                  >
+                    {day}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-4">
+              <div className="flex space-x-1">
+                {[0, 1, 2, 3].map(i => (
+                  <div 
+                    key={i}
+                    className={`thumbnail-item ${draggedThumb === i ? 'dragging' : ''}`}
+                    draggable
+                    onDragStart={() => handleThumbDragStart(i)}
+                    onDragOver={handleThumbDragOver}
+                    onDrop={() => handleThumbDrop(i)}
+                    onDragEnd={() => setDraggedThumb(null)}
+                    onClick={() => { setActiveSlotIdx(i); setSelectedElements([]); setSelectedDrawingId(null); setSelectedThumbIdx(i); }}
+                    style={{ width: 40, height: 40, cursor: 'grab' }}
+                    className={`flex items-center justify-center text-sm font-medium rounded-md cursor-grab ${activeSlotIdx === i ? 'border-2 border-primary bg-gray-800 text-white' : 'border border-gray-700 bg-gray-800 text-gray-400'}`}
+                  >
+                    {currentStory.slots[i] ? (
+                      <img src={currentStory.slots[i]} alt="" className="w-full h-full object-cover rounded" />
+                    ) : (
+                      <span>{i + 1}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center space-x-2">
+                <button onClick={exportDay} className="px-4 py-2 text-sm font-medium bg-primary text-white rounded-md shadow-md hover:opacity-90 transition-opacity">Exportar día</button>
+                <button onClick={exportAll} className="px-4 py-2 text-sm font-medium bg-gray-700 text-gray-300 rounded-md hover:bg-gray-600 transition-colors">Exportar todos</button>
+              </div>
+            </div>
+          </header>
+
+          {/* MAIN CONTENT */}
+          <main className="flex-grow p-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* COLUMNA GUION */}
+            <div className="bg-gray-900/50 p-6 rounded-lg flex flex-col">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-4">GUION STORY (BLOQUES DE TEXTO)</h2>
+              <div className="flex-grow relative">
+                <textarea 
+                  value={guionText} 
+                  onChange={e => setGuionText(e.target.value)} 
+                  placeholder="Pega tu guion aquí..."
+                  className="w-full h-full p-4 bg-indigo-900/20 border border-purple-500 rounded-lg resize-none text-gray-300 placeholder-gray-400 focus:ring-purple-500 focus:border-purple-500"
+                />
+              </div>
+              <button 
+                onClick={addTextsFromGuion} 
+                disabled={!guionText.trim()} 
+                className={`mt-4 w-full py-3 text-sm font-semibold rounded-lg transition-colors ${guionText.trim() ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:opacity-90' : 'bg-gray-700 text-gray-200 opacity-50'}`}
+              >
+                Generar textos
+              </button>
+            </div>
+
+            {/* COLUMNA TOOLS */}
+            <div className="bg-gray-900/50 p-6 rounded-lg flex flex-col space-y-6 overflow-y-auto">
+              {/* Dibujo */}
+              <div>
+                <h3 className="text-lg font-bold text-white mb-4">Dibujo</h3>
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  <button onClick={() => setBrushStyle('normal')} className={`py-3 text-sm font-medium rounded-lg ${brushStyle === 'normal' ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-lg' : 'bg-gray-800 text-gray-300'}`}>Normal</button>
+                  <button onClick={() => setBrushStyle('neon')} className={`py-3 text-sm font-medium rounded-lg ${brushStyle === 'neon' ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-lg' : 'bg-gray-800 text-gray-300'}`}>Neon</button>
+                  <button onClick={() => setBrushTip('normal')} className={`py-3 text-sm font-medium rounded-lg ${brushTip === 'normal' ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-lg' : 'bg-gray-800 text-gray-300'}`}>Línea</button>
+                  <button onClick={() => setBrushTip('arrow')} className={`py-3 text-sm font-medium rounded-lg ${brushTip === 'arrow' ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-lg' : 'bg-gray-800 text-gray-300'}`}>Flecha</button>
+                </div>
+                <p className="text-sm text-gray-400 mb-2">Colores dibujo</p>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {DRAW_COLORS.map(c => (
+                    <button key={c} onClick={() => setDrawColor(c)} className="w-6 h-6 rounded-full" style={{ background: c, border: drawColor === c ? '2px solid white' : '2px solid transparent' }} />
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={undoLastAction} className="flex items-center justify-center py-2 bg-gray-800 text-gray-300 rounded-lg hover:bg-gray-700"><span className="material-icons mr-2">undo</span>Deshacer</button>
+                  <button onClick={clearAll} className="py-2 bg-red-800/80 text-white rounded-lg hover:bg-red-700/80">Borrar</button>
+                </div>
+              </div>
+
+              {/* Textos */}
+              <div>
+                <h3 className="text-lg font-bold text-white mb-4">Textos</h3>
+                <div className="grid grid-cols-4 gap-2 mb-4">
+                  {FONTS.map(f => (
+                    <button key={f.id} onClick={() => selectedTextObj && updateText(firstSelectedText.id, { fontId: f.id, fontFamily: f.fontFamily, fontWeight: f.fontWeight })} className={`py-2 text-xs rounded-lg ${selectedTextObj?.fontId === f.id ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white' : 'bg-gray-800 text-gray-300'} ${selectedTextObj ? '' : 'opacity-50'}`}>{f.name}</button>
+                  ))}
+                </div>
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  {['left', 'center', 'right'].map((a, i) => (
+                    <button key={a} onClick={() => selectedTextObj && updateText(firstSelectedText.id, { align: a })} className={`py-2 text-xs rounded-lg ${selectedTextObj?.align === a ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white' : 'bg-gray-800 text-gray-300'} ${selectedTextObj ? '' : 'opacity-50'}`}>{['Izq', 'Centro', 'Der'][i]}</button>
+                  ))}
+                </div>
+                <p className="text-sm text-gray-400 mb-2">Color texto</p>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {TEXT_COLORS.map(c => (
+                    <button key={c} onClick={() => selectedTextObj && updateText(firstSelectedText.id, { color: c })} className={`w-6 h-6 rounded-md ${selectedTextObj ? '' : 'opacity-50'}`} style={{ background: c, border: selectedTextObj?.color === c ? '2px solid white' : '2px solid transparent' }} />
+                  ))}
+                </div>
+                <p className="text-sm text-gray-400 mb-2">Color fondo (Shift+rueda = opacidad)</p>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {['#000000', '#FFFFFF', '#FF3B30', '#FF9500', '#FFCC00', '#34C759', '#007AFF', '#AF52DE'].map(c => (
+                    <button key={c} onClick={() => selectedTextObj && updateText(firstSelectedText.id, { bgColor: c })} className={`w-6 h-6 rounded-md ${selectedTextObj ? '' : 'opacity-50'}`} style={{ background: c, border: selectedTextObj?.bgColor === c ? '2px solid cyan' : '2px solid transparent' }} />
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={undoLastAction} className="flex items-center justify-center py-2 bg-gray-800 text-gray-300 rounded-lg hover:bg-gray-700"><span className="material-icons mr-2">undo</span>Deshacer</button>
+                  <button onClick={clearAll} className="py-2 bg-red-800/80 text-white rounded-lg hover:bg-red-700/80">Borrar</button>
+                </div>
+              </div>
+
+              {/* Botones Dibujar y Captura - movidos aquí */}
+              <div className="mt-auto pt-4 border-t border-gray-700">
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={() => setTool(tool === 'draw' ? 'select' : 'draw')} className={`py-3 text-sm font-medium rounded-lg transition-colors ${tool === 'draw' ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-lg' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}`}>
+                    <span className="material-icons mr-1" style={{ fontSize: 16, verticalAlign: 'middle' }}>brush</span> Dibujar
+                  </button>
+                  <button onClick={() => overlayInputRef.current?.click()} className="py-3 text-sm font-medium bg-gray-800 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors">
+                    <span className="material-icons mr-1" style={{ fontSize: 16, verticalAlign: 'middle' }}>photo_camera</span> Captura
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* COLUMNA CANVAS - ahora ocupa toda la altura */}
+            <div className="bg-gray-900/50 p-4 rounded-lg flex items-center justify-center">
+              <div 
+                ref={canvasRef} 
+                className="bg-black relative overflow-hidden h-full"
+                style={{ aspectRatio: '9/16', cursor: tool === 'draw' ? 'crosshair' : 'default' }}
+                onMouseDown={handleCanvasMouseDown}
+                onMouseMove={handleCanvasMouseMove}
+                onMouseUp={handleCanvasMouseUp}
+                onMouseLeave={handleCanvasMouseUp}
+              >
+                {currentImage ? (
+                  <img src={currentImage} alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none" draggable={false} />
+                ) : (
+                  <div onClick={() => fileInputRef.current?.click()} className="absolute inset-0 flex flex-col items-center justify-center bg-indigo-900/20 border-2 border-dashed border-gray-600 cursor-pointer">
+                    <span className="material-icons text-4xl text-gray-500">add</span>
+                    <p className="text-gray-400">Sube una imagen</p>
+                  </div>
+                )}
+
+                <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
+                  <defs>
+                    <filter id="neonGlow" x="-50%" y="-50%" width="200%" height="200%">
+                      <feGaussianBlur stdDeviation="3" result="blur" />
+                      <feMerge><feMergeNode in="blur" /><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+                    </filter>
+                  </defs>
+                  <g style={{ pointerEvents: 'auto' }}>
+                    {currentDrawings.map((d, i) => renderPath(d, i))}
+                    {isDrawing && currentPath.length > 1 && renderPath({ path: currentPath, color: drawColor, size: brushSize, style: brushStyle, tip: brushTip }, 'current', true)}
+                  </g>
+                </svg>
+
+                {currentOverlays.map(o => (
+                  <div key={o.id} onMouseDown={(e) => startDrag('overlay', o.id, e)} style={{ position: 'absolute', left: o.x, top: o.y, transform: 'translate(-50%, -50%)', width: o.width, height: o.height, cursor: 'move', outline: selectedElements.some(s => s.type === 'overlay' && s.id === o.id) ? '2px solid #00ffff' : 'none' }}>
+                    <img src={o.src} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none' }} draggable={false} />
+                  </div>
+                ))}
+
+                {currentTexts.map(t => renderInstagramText(t))}
+              </div>
+            </div>
+          </main>
+
+          <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleImageUpload} style={{ display: 'none' }} />
+          <input ref={overlayInputRef} type="file" accept="image/*" onChange={handleOverlayUpload} style={{ display: 'none' }} />
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<StoriesEditor />);
+  </script>
+</body>
+</html>
