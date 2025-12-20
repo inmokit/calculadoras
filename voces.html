@@ -100,7 +100,6 @@
             </header>
 
             <div id="error" class="hidden w-full mb-4 bg-red-900/50 border border-red-500 rounded-lg p-4 text-sm text-red-200"></div>
-            <div id="success" class="hidden w-full mb-4 bg-green-900/50 border border-green-500 rounded-lg p-4 text-sm text-green-200"></div>
 
             <main class="w-full flex flex-col lg:flex-row gap-6">
                 <!-- Left Column: Script -->
@@ -110,7 +109,7 @@
                         <textarea id="script" class="w-full flex-grow min-h-[300px] bg-slate-100 dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-700 dark:text-slate-300 p-4 resize-none" placeholder="Luego pulsa 'Procesar con IA' para optimizarlo automáticamente."></textarea>
                         <p class="mt-4 text-xs text-slate-500 dark:text-slate-400 flex items-start gap-2">
                             <span class="material-symbols-outlined text-sm text-yellow-500">lightbulb</span>
-                            <span>Pega el guion de Gemini tal cual. Claude lo optimizará: mejora redacción, corta frases, decide repeticiones.</span>
+                            <span>Pega el guion tal cual. La IA lo optimizará: mejora redacción, corta frases, decide repeticiones.</span>
                         </p>
                     </div>
                 </div>
@@ -151,13 +150,13 @@
                         <div class="space-y-6">
                             <div class="flex items-center justify-between gap-4">
                                 <label class="text-sm w-24">Velocidad</label>
-                                <input id="speed" type="range" min="0.5" max="1.5" step="0.1" value="1" class="w-full h-1 rounded-lg appearance-none cursor-pointer">
-                                <span id="speedVal" class="text-sm font-semibold w-8 text-right text-primary">1x</span>
+                                <input id="speed" type="range" min="0.5" max="1.5" step="0.1" value="0.8" class="w-full h-1 rounded-lg appearance-none cursor-pointer">
+                                <span id="speedVal" class="text-sm font-semibold w-8 text-right text-primary">0.8x</span>
                             </div>
                             <div class="flex items-center justify-between gap-4">
                                 <label class="text-sm w-24">Estabilidad</label>
-                                <input id="stability" type="range" min="0" max="1" step="0.1" value="0.2" class="w-full h-1 rounded-lg appearance-none cursor-pointer">
-                                <span id="stabilityVal" class="text-sm font-semibold w-8 text-right text-primary">0.2</span>
+                                <input id="stability" type="range" min="0" max="1" step="0.1" value="0.6" class="w-full h-1 rounded-lg appearance-none cursor-pointer">
+                                <span id="stabilityVal" class="text-sm font-semibold w-8 text-right text-primary">0.6</span>
                             </div>
                             <div class="flex items-center justify-between gap-4">
                                 <label class="text-sm w-24">Expresividad</label>
@@ -172,8 +171,8 @@
                         <h2 class="text-sm font-semibold uppercase text-slate-500 dark:text-slate-400 mb-6">PAUSAS ENTRE FRASES</h2>
                         <div class="flex items-center justify-between gap-4">
                             <label class="text-sm w-24">Multiplicador</label>
-                            <input id="mult" type="range" min="0.5" max="3" step="0.25" value="1" class="w-full h-1 rounded-lg appearance-none cursor-pointer">
-                            <span id="multVal" class="text-sm font-semibold w-8 text-right text-primary">1x</span>
+                            <input id="mult" type="range" min="0.5" max="3" step="0.25" value="1.5" class="w-full h-1 rounded-lg appearance-none cursor-pointer">
+                            <span id="multVal" class="text-sm font-semibold w-8 text-right text-primary">1.5x</span>
                         </div>
                     </div>
 
@@ -267,13 +266,12 @@ const API_ELEVENLABS = 'https://elevenlabs-proxy.ajnietoc.workers.dev';
 const API_CLAUDE = 'https://claude-guiones.ajnietoc.workers.dev';
 
 let voices=[],videos=[],phrases=[],phraseReps=[],idx=0,rep=0,videoIdx=0,playing=false,paused=false,audio=null,timeout=null,lastDur=0,cache={};
-let cfg={speed:1,stability:0.2,similarity:0.5,mult:1,voiceId:null,voiceName:''};
+let cfg={speed:0.8,stability:0.6,similarity:0.5,mult:1.5,voiceId:null,voiceName:''};
 let guionProcesado=false;
 
 const $=id=>document.getElementById(id);
-const showErr=m=>{$('error').textContent=m;$('error').classList.remove('hidden');$('success').classList.add('hidden');};
+const showErr=m=>{$('error').textContent=m;$('error').classList.remove('hidden');};
 const hideErr=()=>$('error').classList.add('hidden');
-const showSuccess=m=>{$('success').textContent=m;$('success').classList.remove('hidden');$('error').classList.add('hidden');};
 
 function playBeep(){
     const ctx=new(window.AudioContext||window.webkitAudioContext)();
@@ -322,7 +320,7 @@ async function procesarConIA(){
     var guion=$('script').value.trim();
     if(!guion)return;
     
-    showLoading('✨ Procesando con IA','Claude está optimizando tu guion...',30);
+    showLoading('✨ Procesando con IA','La IA está optimizando tu guion...',30);
     $('btnIA').disabled=true;
     
     try{
@@ -343,7 +341,6 @@ async function procesarConIA(){
         $('script').value=d.guion;
         guionProcesado=true;
         hideLoading();
-        showSuccess('✓ Guion optimizado. Revísalo y pulsa "Preparar y empezar".');
         checkButtons();
     }catch(e){
         hideLoading();
