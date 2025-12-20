@@ -72,8 +72,6 @@
         .dark input[type="range"]::-moz-range-thumb {
             border-color: #0f172a;
         }
-        .screen { display: none; }
-        .screen.active { display: block; }
         .status-dot { width: 10px; height: 10px; border-radius: 9999px; background: #334155; }
         .status-dot.speaking { background: #4ade80; animation: pulse 1s infinite; }
         .status-dot.waiting { background: #fbbf24; }
@@ -85,170 +83,207 @@
         .video-dot { width: 12px; height: 12px; border-radius: 9999px; background: #334155; }
         .video-dot.done { background: #22c55e; }
         .video-dot.current { background: #ec4899; animation: pulse 1s infinite; }
+        .filter-pill { padding: 0.5rem 1rem; border-radius: 9999px; font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .filter-pill.active { background: #ec4899; color: white; }
+        .filter-pill:not(.active) { background: #1e293b; color: #94a3b8; }
+        .filter-pill:not(.active):hover { background: #334155; }
+        .voice-mode-btn { 
+            width: 100%; 
+            padding: 0.75rem 1rem; 
+            border-radius: 0.75rem; 
+            font-weight: 600; 
+            cursor: pointer; 
+            transition: all 0.2s; 
+            border: 2px solid #334155;
+            background: transparent;
+            color: #94a3b8;
+        }
+        .voice-mode-btn.active { 
+            border-color: #ec4899;
+            background: transparent;
+            color: white;
+        }
+        .voice-mode-btn:not(.active):hover { 
+            border-color: #475569;
+        }
     </style>
 </head>
-<body class="bg-background-light dark:bg-background-dark font-display text-slate-700 dark:text-slate-300 antialiased">
-    <div class="flex flex-col items-center justify-center min-h-screen p-4 sm:p-6 lg:p-8">
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-700 dark:text-slate-300 antialiased overflow-hidden">
+    <div class="flex flex-col items-center justify-center h-screen p-4 sm:p-6 lg:p-8">
         
         <!-- SETUP SCREEN -->
-        <div id="setup" class="screen active w-full max-w-7xl">
-            <header class="w-full mb-8">
+        <div id="setup" class="w-full max-w-7xl h-full flex flex-col">
+            <header class="w-full mb-6 flex-shrink-0">
                 <div class="flex items-center gap-3">
                     <span class="material-symbols-outlined text-3xl text-slate-500 dark:text-slate-400">headphones</span>
                     <h1 class="text-2xl font-semibold text-slate-800 dark:text-slate-100">Teleprompter Auditivo</h1>
                 </div>
             </header>
 
-            <div id="error" class="hidden w-full mb-4 bg-red-900/50 border border-red-500 rounded-lg p-4 text-sm text-red-200"></div>
+            <div id="error" class="hidden w-full mb-4 bg-red-900/50 border border-red-500 rounded-lg p-4 text-sm text-red-200 flex-shrink-0"></div>
 
-            <main class="w-full flex flex-col lg:flex-row gap-6">
-                <!-- Left Column: Script -->
-                <div class="flex-grow lg:w-3/5">
-                    <div class="bg-white dark:bg-slate-800/50 p-6 rounded-lg shadow-sm h-full flex flex-col">
-                        <label class="text-sm font-semibold uppercase text-slate-500 dark:text-slate-400 mb-4" for="script">Pega tu guion en bruto aquí...</label>
-                        <textarea id="script" class="w-full flex-grow min-h-[300px] bg-slate-100 dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-700 dark:text-slate-300 p-4 resize-none" placeholder="Luego pulsa 'Procesar con IA' para optimizarlo automáticamente."></textarea>
-                        <p class="mt-4 text-xs text-slate-500 dark:text-slate-400 flex items-start gap-2">
-                            <span class="material-symbols-outlined text-sm text-yellow-500">lightbulb</span>
-                            <span>Pega el guion tal cual. La IA lo optimizará: mejora redacción, corta frases, decide repeticiones.</span>
-                        </p>
-                    </div>
-                </div>
-
-                <!-- Right Column: Settings -->
-                <div class="lg:w-2/5 flex flex-col gap-6">
-                    <!-- Datos del vídeo -->
-                    <div class="bg-white dark:bg-slate-800/50 p-6 rounded-lg shadow-sm">
-                        <h2 class="text-sm font-semibold uppercase text-slate-500 dark:text-slate-400 mb-4">DATOS DEL VÍDEO</h2>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <input id="inmobiliaria" type="text" class="w-full bg-slate-100 dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-700 focus:ring-primary focus:border-primary placeholder-slate-400 dark:placeholder-slate-500 px-4 py-2" placeholder="Nombre inmobiliaria">
+            <main class="w-full flex-1 flex flex-col lg:flex-row gap-6 overflow-hidden min-h-0">
+                <!-- Left Column: Controls -->
+                <div class="lg:w-2/5 flex flex-col gap-4 overflow-y-auto">
+                    <!-- Variables -->
+                    <div class="bg-white dark:bg-slate-800/50 p-6 rounded-lg shadow-sm flex-shrink-0">
+                        <h2 class="text-sm font-semibold uppercase text-slate-500 dark:text-slate-400 mb-4">VARIABLES</h2>
+                        <div class="grid grid-cols-2 gap-4">
                             <input id="ciudad" type="text" class="w-full bg-slate-100 dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-700 focus:ring-primary focus:border-primary placeholder-slate-400 dark:placeholder-slate-500 px-4 py-2" placeholder="Ciudad">
+                            <input id="inmobiliaria" type="text" class="w-full bg-slate-100 dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-700 focus:ring-primary focus:border-primary placeholder-slate-400 dark:placeholder-slate-500 px-4 py-2" placeholder="Inmobiliaria">
                         </div>
-                    </div>
-
-                    <!-- Botón Procesar IA -->
-                    <button id="btnIA" disabled class="w-full bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 disabled:text-slate-600 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors">
-                        <span class="material-symbols-outlined text-yellow-400 text-lg">auto_awesome</span>
-                        Procesar con IA
-                    </button>
-
-                    <!-- Voz -->
-                    <div class="bg-white dark:bg-slate-800/50 p-6 rounded-lg shadow-sm">
-                        <p class="text-sm text-slate-500 dark:text-slate-400">Voz: <span id="voiceName" class="font-semibold text-primary">Cargando...</span></p>
-                        <div class="relative mt-4">
-                            <select id="voiceSelect" class="w-full appearance-none bg-slate-100 dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-700 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-200 px-4 py-2.5" style="display:none"></select>
-                            <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">expand_more</span>
-                        </div>
-                        <button id="btnPreview" disabled class="mt-4 w-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-600 dark:text-slate-300 font-semibold py-2.5 px-4 rounded border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-2 transition-colors">
-                            <span class="material-symbols-outlined text-primary">graphic_eq</span>
-                            Escuchar voz
-                        </button>
                     </div>
 
                     <!-- Configuración -->
-                    <div class="bg-white dark:bg-slate-800/50 p-6 rounded-lg shadow-sm">
+                    <div class="bg-white dark:bg-slate-800/50 p-6 rounded-lg shadow-sm flex-shrink-0">
                         <h2 class="text-sm font-semibold uppercase text-slate-500 dark:text-slate-400 mb-6">CONFIGURACIÓN</h2>
                         <div class="space-y-6">
                             <div class="flex items-center justify-between gap-4">
                                 <label class="text-sm w-24">Velocidad</label>
-                                <input id="speed" type="range" min="0.5" max="1.5" step="0.1" value="0.8" class="w-full h-1 rounded-lg appearance-none cursor-pointer">
-                                <span id="speedVal" class="text-sm font-semibold w-8 text-right text-primary">0.8x</span>
+                                <input id="speed" type="range" min="0.5" max="1.5" step="0.1" value="0.7" class="w-full h-1 rounded-lg appearance-none cursor-pointer">
+                                <span id="speedVal" class="text-sm font-semibold w-8 text-right text-primary">0.7x</span>
                             </div>
                             <div class="flex items-center justify-between gap-4">
                                 <label class="text-sm w-24">Estabilidad</label>
-                                <input id="stability" type="range" min="0" max="1" step="0.1" value="0.6" class="w-full h-1 rounded-lg appearance-none cursor-pointer">
-                                <span id="stabilityVal" class="text-sm font-semibold w-8 text-right text-primary">0.6</span>
+                                <input id="stability" type="range" min="0" max="1" step="0.1" value="1" class="w-full h-1 rounded-lg appearance-none cursor-pointer">
+                                <span id="stabilityVal" class="text-sm font-semibold w-8 text-right text-primary">1</span>
                             </div>
                             <div class="flex items-center justify-between gap-4">
-                                <label class="text-sm w-24">Expresividad</label>
-                                <input id="similarity" type="range" min="0" max="1" step="0.1" value="0.5" class="w-full h-1 rounded-lg appearance-none cursor-pointer">
-                                <span id="similarityVal" class="text-sm font-semibold w-8 text-right text-primary">0.5</span>
+                                <label class="text-sm w-24">Multiplicador</label>
+                                <input id="mult" type="range" min="0.5" max="3" step="0.25" value="1.5" class="w-full h-1 rounded-lg appearance-none cursor-pointer">
+                                <span id="multVal" class="text-sm font-semibold w-8 text-right text-primary">1.5x</span>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Pausas -->
-                    <div class="bg-white dark:bg-slate-800/50 p-6 rounded-lg shadow-sm">
-                        <h2 class="text-sm font-semibold uppercase text-slate-500 dark:text-slate-400 mb-6">PAUSAS ENTRE FRASES</h2>
-                        <div class="flex items-center justify-between gap-4">
-                            <label class="text-sm w-24">Multiplicador</label>
-                            <input id="mult" type="range" min="0.5" max="3" step="0.25" value="1.5" class="w-full h-1 rounded-lg appearance-none cursor-pointer">
-                            <span id="multVal" class="text-sm font-semibold w-8 text-right text-primary">1.5x</span>
+                    <!-- Modo de voz -->
+                    <div class="bg-white dark:bg-slate-800/50 p-6 rounded-lg shadow-sm flex-shrink-0">
+                        <h2 class="text-sm font-semibold uppercase text-slate-500 dark:text-slate-400 mb-4">MODO DE VOZ</h2>
+                        <div class="space-y-3">
+                            <button id="btnVozNativa" class="voice-mode-btn">
+                                <div class="flex items-center justify-center gap-2">
+                                    <span class="material-symbols-outlined">speed</span>
+                                    Voz sin IA
+                                </div>
+                            </button>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 text-center -mt-1">Más rápida y más robótica</p>
+                            
+                            <button id="btnVozIA" class="voice-mode-btn active">
+                                <div class="flex items-center justify-center gap-2">
+                                    <span class="material-symbols-outlined">auto_awesome</span>
+                                    Voz con IA
+                                </div>
+                            </button>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 text-center -mt-1">Más realista pero tarda más en prepararse</p>
                         </div>
                     </div>
 
                     <!-- Botón Empezar -->
-                    <button id="btnStart" disabled class="w-full bg-primary hover:bg-pink-600 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors">
+                    <button id="btnStart" disabled class="w-full bg-slate-700 text-slate-500 disabled:cursor-not-allowed font-semibold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors flex-shrink-0">
                         <span class="material-symbols-outlined text-lg">play_arrow</span>
                         Preparar y empezar
                     </button>
                 </div>
+
+                <!-- Right Column: Selector de guiones -->
+                <div class="flex-grow lg:w-3/5 flex flex-col overflow-hidden min-h-0">
+                    <div class="bg-white dark:bg-slate-800/50 p-6 rounded-lg shadow-sm flex-1 flex flex-col overflow-hidden min-h-0">
+                        <!-- Filtros -->
+                        <div class="flex items-center gap-4 mb-4 flex-wrap flex-shrink-0">
+                            <div class="flex gap-2">
+                                <button class="filter-pill active" data-filter-estado="todos">Todos</button>
+                                <button class="filter-pill" data-filter-estado="pendientes">Pendientes</button>
+                                <button class="filter-pill" data-filter-estado="grabados">Grabados</button>
+                            </div>
+                            <div class="h-6 w-px bg-slate-700"></div>
+                            <div class="flex gap-2 flex-wrap">
+                                <button class="filter-pill active" data-filter-categoria="todas">Todas</button>
+                                <button class="filter-pill" data-filter-categoria="video_principal">Principal</button>
+                                <button class="filter-pill" data-filter-categoria="reply_to_comment">Comentarios</button>
+                                <button class="filter-pill" data-filter-categoria="calculadoras">Calculadoras</button>
+                                <button class="filter-pill" data-filter-categoria="reels">Reels</button>
+                            </div>
+                        </div>
+
+                        <!-- Lista con scroll -->
+                        <div id="guionesList" class="flex-1 overflow-y-auto space-y-3 min-h-0"></div>
+                    </div>
+                </div>
             </main>
         </div>
 
-        <!-- PLAYER SCREEN -->
-        <div id="player" class="screen w-full max-w-2xl">
-            <header class="w-full mb-8">
-                <div class="flex items-center gap-3">
-                    <span class="material-symbols-outlined text-3xl text-slate-500 dark:text-slate-400">headphones</span>
-                    <h1 class="text-2xl font-semibold text-slate-800 dark:text-slate-100">Teleprompter Auditivo</h1>
+        <!-- PLAYER SCREEN (MODAL OVERLAY) -->
+        <div id="player" class="fixed inset-0 bg-background-dark z-50 flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8" style="display:none">
+            <div class="w-full max-w-2xl">
+                <header class="w-full mb-8">
+                    <div class="flex items-center gap-3">
+                        <span class="material-symbols-outlined text-3xl text-slate-500 dark:text-slate-400">headphones</span>
+                        <h1 class="text-2xl font-semibold text-slate-800 dark:text-slate-100">Teleprompter Auditivo</h1>
+                    </div>
+                </header>
+
+                <!-- Video Progress Dots -->
+                <div id="videoProgress" class="flex justify-center gap-2 mb-6"></div>
+
+                <!-- Phrase Box -->
+                <div class="bg-white dark:bg-slate-800/50 rounded-xl p-8 mb-6 shadow-sm">
+                    <div id="videoCounter" class="text-xs font-semibold text-primary text-center mb-2">Vídeo 1 de 1</div>
+                    <div id="counter" class="text-sm text-slate-500 dark:text-slate-400 text-center mb-4">1 / 1</div>
+                    <div id="phraseText" class="text-xl leading-relaxed text-center text-slate-800 dark:text-slate-100 min-h-[80px] flex items-center justify-center"></div>
+                    <div id="repInd" class="text-xs text-primary text-center mt-4"></div>
+                    
+                    <!-- Siguiente guión preview -->
+                    <div id="nextGuion" class="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
+                        <div class="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Siguiente guión:</div>
+                        <div id="nextGuionText" class="text-sm text-slate-600 dark:text-slate-400"></div>
+                    </div>
                 </div>
-            </header>
 
-            <!-- Video Progress Dots -->
-            <div id="videoProgress" class="flex justify-center gap-2 mb-6"></div>
+                <!-- Status Bar -->
+                <div class="flex justify-center items-center gap-2 mb-4 text-sm text-slate-500 dark:text-slate-400">
+                    <div id="statusDot" class="status-dot"></div>
+                    <span id="statusText">Listo</span>
+                </div>
 
-            <!-- Phrase Box -->
-            <div class="bg-white dark:bg-slate-800/50 rounded-xl p-8 mb-6 shadow-sm">
-                <div id="videoCounter" class="text-xs font-semibold text-primary text-center mb-2">Vídeo 1 de 1</div>
-                <div id="counter" class="text-sm text-slate-500 dark:text-slate-400 text-center mb-4">1 / 1</div>
-                <div id="phraseText" class="text-xl leading-relaxed text-center text-slate-800 dark:text-slate-100 min-h-[80px] flex items-center justify-center"></div>
-                <div id="repInd" class="text-xs text-primary text-center mt-4"></div>
-            </div>
+                <!-- Progress Bar -->
+                <div class="h-1 bg-slate-200 dark:bg-slate-700 rounded-full mb-8 overflow-hidden">
+                    <div id="progressFill" class="h-full bg-primary transition-all duration-300" style="width: 0%"></div>
+                </div>
 
-            <!-- Status Bar -->
-            <div class="flex justify-center items-center gap-2 mb-4 text-sm text-slate-500 dark:text-slate-400">
-                <div id="statusDot" class="status-dot"></div>
-                <span id="statusText">Listo</span>
-            </div>
+                <!-- Controls Normal -->
+                <div id="controlsNormal" class="grid grid-cols-3 gap-3 mb-4">
+                    <button id="btnPrev" class="bg-white dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg p-4 flex flex-col items-center gap-2 transition-colors">
+                        <span class="material-symbols-outlined text-2xl text-slate-600 dark:text-slate-300">skip_previous</span>
+                        <span class="text-xs text-slate-500 dark:text-slate-400">Anterior</span>
+                    </button>
+                    <button id="btnRepeat" class="bg-white dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg p-4 flex flex-col items-center gap-2 transition-colors">
+                        <span class="material-symbols-outlined text-2xl text-slate-600 dark:text-slate-300">replay</span>
+                        <span class="text-xs text-slate-500 dark:text-slate-400">Repetir</span>
+                    </button>
+                    <button id="btnNext" class="bg-white dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg p-4 flex flex-col items-center gap-2 transition-colors">
+                        <span class="material-symbols-outlined text-2xl text-slate-600 dark:text-slate-300">skip_next</span>
+                        <span class="text-xs text-slate-500 dark:text-slate-400">Siguiente</span>
+                    </button>
+                    <button id="btnPlayPause" class="col-span-3 bg-primary hover:bg-pink-600 text-white rounded-lg p-5 flex items-center justify-center gap-3 transition-colors">
+                        <span class="icon material-symbols-outlined text-3xl">pause</span>
+                        <span id="ppText" class="font-semibold">Pausar</span>
+                    </button>
+                </div>
 
-            <!-- Progress Bar -->
-            <div class="h-1 bg-slate-200 dark:bg-slate-700 rounded-full mb-8 overflow-hidden">
-                <div id="progressFill" class="h-full bg-primary transition-all duration-300" style="width: 0%"></div>
-            </div>
+                <!-- Controls Next Video -->
+                <div id="controlsNextVideo" class="hidden mb-4">
+                    <button id="btnNextVideo" class="w-full bg-green-500 hover:bg-green-600 text-white rounded-lg p-6 flex items-center justify-center gap-3 transition-colors">
+                        <span class="icon material-symbols-outlined text-3xl">play_arrow</span>
+                        <span class="font-semibold text-lg">Siguiente vídeo</span>
+                    </button>
+                </div>
 
-            <!-- Controls Normal -->
-            <div id="controlsNormal" class="grid grid-cols-3 gap-3 mb-4">
-                <button id="btnPrev" class="bg-white dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg p-4 flex flex-col items-center gap-2 transition-colors">
-                    <span class="material-symbols-outlined text-2xl text-slate-600 dark:text-slate-300">skip_previous</span>
-                    <span class="text-xs text-slate-500 dark:text-slate-400">Anterior</span>
-                </button>
-                <button id="btnRepeat" class="bg-white dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg p-4 flex flex-col items-center gap-2 transition-colors">
-                    <span class="material-symbols-outlined text-2xl text-slate-600 dark:text-slate-300">replay</span>
-                    <span class="text-xs text-slate-500 dark:text-slate-400">Repetir</span>
-                </button>
-                <button id="btnNext" class="bg-white dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg p-4 flex flex-col items-center gap-2 transition-colors">
-                    <span class="material-symbols-outlined text-2xl text-slate-600 dark:text-slate-300">skip_next</span>
-                    <span class="text-xs text-slate-500 dark:text-slate-400">Siguiente</span>
-                </button>
-                <button id="btnPlayPause" class="col-span-3 bg-primary hover:bg-pink-600 text-white rounded-lg p-5 flex items-center justify-center gap-3 transition-colors">
-                    <span class="icon material-symbols-outlined text-3xl">pause</span>
-                    <span id="ppText" class="font-semibold">Pausar</span>
-                </button>
-            </div>
-
-            <!-- Controls Next Video -->
-            <div id="controlsNextVideo" class="hidden mb-4">
-                <button id="btnNextVideo" class="w-full bg-green-500 hover:bg-green-600 text-white rounded-lg p-6 flex items-center justify-center gap-3 transition-colors">
-                    <span class="icon material-symbols-outlined text-3xl">play_arrow</span>
-                    <span class="font-semibold text-lg">Siguiente vídeo</span>
+                <!-- Back Button -->
+                <button id="btnBack" class="w-full bg-transparent hover:bg-slate-800/50 border border-slate-300 dark:border-slate-700 text-slate-500 dark:text-slate-400 rounded-lg py-3 flex items-center justify-center gap-2 transition-colors">
+                    <span class="material-symbols-outlined">arrow_back</span>
+                    Volver
                 </button>
             </div>
-
-            <!-- Back Button -->
-            <button id="btnBack" class="w-full bg-transparent hover:bg-slate-800/50 border border-slate-300 dark:border-slate-700 text-slate-500 dark:text-slate-400 rounded-lg py-3 flex items-center justify-center gap-2 transition-colors">
-                <span class="material-symbols-outlined">arrow_back</span>
-                Volver
-            </button>
         </div>
 
         <!-- LOADING OVERLAY -->
@@ -264,14 +299,32 @@
 <script>
 const API_ELEVENLABS = 'https://elevenlabs-proxy.ajnietoc.workers.dev';
 const API_CLAUDE = 'https://claude-guiones.ajnietoc.workers.dev';
+const GUIONES_URL = 'https://inmokit.github.io/calculadoras/guiones.json';
+
+const NOMBRES_ESPANOLES = [
+    'María', 'Carmen', 'Ana', 'Isabel', 'Dolores', 'Pilar', 'Teresa', 'Rosa', 'Josefa', 'Antonia',
+    'Francisco', 'Antonio', 'José', 'Manuel', 'David', 'Juan', 'Javier', 'Daniel', 'Carlos', 'Miguel',
+    'Laura', 'Marta', 'Elena', 'Cristina', 'Paula', 'Raquel', 'Silvia', 'Beatriz', 'Nuria', 'Sara',
+    'Pedro', 'Ángel', 'Sergio', 'Alberto', 'Fernando', 'Luis', 'Pablo', 'Jorge', 'Rubén', 'Iván',
+    'Lucía', 'Sofía', 'Julia', 'Alba', 'Claudia', 'Adriana', 'Irene', 'Natalia', 'Andrea', 'Marina',
+    'Alejandro', 'Diego', 'Raúl', 'Marcos', 'Adrián', 'Víctor', 'Álvaro', 'Óscar', 'Ignacio', 'Gonzalo',
+    'Patricia', 'Rocío', 'Inmaculada', 'Verónica', 'Sonia', 'Mónica', 'Eva', 'Alicia', 'Esther', 'Miriam',
+    'Roberto', 'Jesús', 'Andrés', 'Rafael', 'Jaime', 'Enrique', 'Ramón', 'Gabriel', 'Ricardo', 'Tomás',
+    'Mercedes', 'Concepción', 'Amparo', 'Guadalupe', 'Encarnación', 'Montserrat', 'Remedios', 'Milagros', 'Soledad', 'Victoria',
+    'Santiago', 'Felipe', 'Eduardo', 'Lorenzo', 'Arturo', 'Emilio', 'Joaquín', 'Sebastián', 'Guillermo', 'Rodrigo'
+];
 
 let voices=[],videos=[],phrases=[],phraseReps=[],idx=0,rep=0,videoIdx=0,playing=false,paused=false,audio=null,timeout=null,lastDur=0,cache={};
-let cfg={speed:0.8,stability:0.6,similarity:0.5,mult:1.5,voiceId:null,voiceName:''};
-let guionProcesado=false;
+let cfg={speed:0.7,stability:1,similarity:0.2,mult:1.5,voiceId:null,voiceName:'',useIA:true};
+let guionesData=[],selectedGuiones=[],guionesMetadata=[],filtroEstado='todos',filtroCategoria='todas';
 
 const $=id=>document.getElementById(id);
 const showErr=m=>{$('error').textContent=m;$('error').classList.remove('hidden');};
 const hideErr=()=>$('error').classList.add('hidden');
+
+function randomNombre(){
+    return NOMBRES_ESPANOLES[Math.floor(Math.random() * NOMBRES_ESPANOLES.length)];
+}
 
 function playBeep(){
     const ctx=new(window.AudioContext||window.webkitAudioContext)();
@@ -301,52 +354,133 @@ async function loadVoices(){
         const d=await r.json();
         voices=d.voices;
         let stela=voices.find(v=>v.name.toLowerCase().includes('stela'));
-        if(stela){selectVoice(stela.voice_id,stela.name);}
-        else if(voices.length>0){selectVoice(voices[0].voice_id,voices[0].name);}
-        $('voiceSelect').innerHTML=voices.map(v=>'<option value="'+v.voice_id+'"'+(v.voice_id===cfg.voiceId?' selected':'')+'>'+v.name+'</option>').join('');
-        $('voiceSelect').style.display='block';
-        $('btnPreview').disabled=false;
-    }catch(e){$('voiceName').textContent='Error';showErr('No se pudieron cargar las voces');}
+        if(stela){cfg.voiceId=stela.voice_id;cfg.voiceName=stela.name;}
+        else if(voices.length>0){cfg.voiceId=voices[0].voice_id;cfg.voiceName=voices[0].name;}
+    }catch(e){showErr('No se pudieron cargar las voces');}
 }
-
-function selectVoice(id,name){cfg.voiceId=id;cfg.voiceName=name;$('voiceName').textContent=name;checkButtons();}
 
 function checkButtons(){
-    $('btnIA').disabled=!$('script').value.trim();
-    $('btnStart').disabled=!($('script').value.trim()&&cfg.voiceId&&guionProcesado);
+    const btn = $('btnStart');
+    if(selectedGuiones.length > 0){
+        btn.disabled = false;
+        btn.classList.remove('bg-slate-700', 'text-slate-500');
+        btn.classList.add('bg-primary', 'hover:bg-pink-600', 'text-white');
+    } else {
+        btn.disabled = true;
+        btn.classList.add('bg-slate-700', 'text-slate-500');
+        btn.classList.remove('bg-primary', 'hover:bg-pink-600', 'text-white');
+    }
 }
 
-async function procesarConIA(){
-    var guion=$('script').value.trim();
-    if(!guion)return;
-    
-    showLoading('✨ Procesando con IA','La IA está optimizando tu guion...',30);
-    $('btnIA').disabled=true;
-    
+async function loadGuionesJSON(){
     try{
-        const r=await fetch(API_CLAUDE,{
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({
-                guion:guion,
-                inmobiliaria:$('inmobiliaria').value.trim(),
-                ciudad:$('ciudad').value.trim()
-            })
-        });
-        
-        if(!r.ok)throw new Error('Error en la API');
-        const d=await r.json();
-        if(d.error)throw new Error(d.error);
-        
-        $('script').value=d.guion;
-        guionProcesado=true;
-        hideLoading();
-        checkButtons();
+        const r = await fetch(GUIONES_URL);
+        if(!r.ok) throw new Error('Error cargando guiones');
+        const d = await r.json();
+        guionesData = d.guiones || [];
+        renderGuionesList();
     }catch(e){
-        hideLoading();
-        showErr('Error procesando: '+e.message);
-        $('btnIA').disabled=false;
+        showErr('Error cargando guiones: '+e.message);
     }
+}
+
+function getLastUsed(id){
+    try{
+        const tracking = JSON.parse(localStorage.getItem('guionesTracking') || '{}');
+        return tracking[id] || null;
+    }catch(e){
+        return null;
+    }
+}
+
+function markAsUsed(id){
+    try{
+        const tracking = JSON.parse(localStorage.getItem('guionesTracking') || '{}');
+        tracking[id] = new Date().toISOString().split('T')[0];
+        localStorage.setItem('guionesTracking', JSON.stringify(tracking));
+    }catch(e){}
+}
+
+function renderGuionesList(){
+    const filtered = guionesData.filter(g => {
+        const lastUsed = getLastUsed(g.id);
+        if(filtroEstado === 'grabados' && !lastUsed) return false;
+        if(filtroEstado === 'pendientes' && lastUsed) return false;
+        if(filtroCategoria !== 'todas' && g.categoria !== filtroCategoria) return false;
+        return true;
+    });
+
+    const list = $('guionesList');
+    list.innerHTML = filtered.map(g => {
+        const lastUsed = getLastUsed(g.id);
+        const isChecked = selectedGuiones.includes(g.id);
+        const numero = String(g.id).padStart(3, '0');
+        return `
+            <div class="bg-slate-100 dark:bg-slate-900 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
+                <label class="flex items-start gap-3 cursor-pointer">
+                    <input type="checkbox" ${isChecked?'checked':''} data-guion-id="${g.id}" class="mt-1 w-4 h-4 text-primary bg-slate-100 border-slate-300 rounded focus:ring-primary">
+                    <div class="flex-1">
+                        <div class="font-semibold text-slate-800 dark:text-slate-100 text-sm">${numero}. ${g.titulo}</div>
+                        <div class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                            Última vez: ${lastUsed ? lastUsed : 'Nunca'}
+                        </div>
+                    </div>
+                </label>
+            </div>
+        `;
+    }).join('');
+
+    list.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        cb.addEventListener('change', function(){
+            const id = parseInt(this.dataset.guionId);
+            if(this.checked){
+                if(!selectedGuiones.includes(id)) selectedGuiones.push(id);
+            }else{
+                selectedGuiones = selectedGuiones.filter(x => x !== id);
+            }
+            checkButtons();
+        });
+    });
+}
+
+// Filtros
+document.querySelectorAll('[data-filter-estado]').forEach(btn => {
+    btn.addEventListener('click', function(){
+        document.querySelectorAll('[data-filter-estado]').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        filtroEstado = this.dataset.filterEstado;
+        renderGuionesList();
+    });
+});
+
+document.querySelectorAll('[data-filter-categoria]').forEach(btn => {
+    btn.addEventListener('click', function(){
+        document.querySelectorAll('[data-filter-categoria]').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        filtroCategoria = this.dataset.filterCategoria;
+        renderGuionesList();
+    });
+});
+
+// Modo de voz
+$('btnVozNativa').addEventListener('click', function(){
+    cfg.useIA = false;
+    $('btnVozNativa').classList.add('active');
+    $('btnVozIA').classList.remove('active');
+});
+
+$('btnVozIA').addEventListener('click', function(){
+    cfg.useIA = true;
+    $('btnVozIA').classList.add('active');
+    $('btnVozNativa').classList.remove('active');
+});
+
+function replaceVariables(text, categoria){
+    const usuario = categoria === 'reply_to_comment' ? randomNombre() : '[usuario]';
+    return text
+        .replace(/\[inmobiliaria\]/g, $('inmobiliaria').value.trim() || '[inmobiliaria]')
+        .replace(/\[ciudad\]/g, $('ciudad').value.trim() || '[ciudad]')
+        .replace(/\[usuario\]/g, usuario);
 }
 
 function parseGuionProcesado(text){
@@ -385,20 +519,46 @@ function parseGuionProcesado(text){
 }
 
 async function genSpeech(text){
-    const key=cfg.voiceId+'-'+text+'-'+cfg.speed+'-'+cfg.stability+'-'+cfg.similarity;
-    if(cache[key])return cache[key];
-    const r=await fetch(API_ELEVENLABS+'/text-to-speech/'+cfg.voiceId,{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({text:text,model_id:'eleven_multilingual_v2',voice_settings:{stability:cfg.stability,similarity_boost:cfg.similarity,speed:cfg.speed}})
-    });
-    if(!r.ok)throw new Error('Error generando audio');
-    const blob=await r.blob();
-    cache[key]=URL.createObjectURL(blob);
-    return cache[key];
+    if(!cfg.useIA){
+        // Usar Web Speech API
+        return new Promise((resolve) => {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'es-ES';
+            utterance.rate = cfg.speed;
+            utterance.pitch = 1;
+            
+            const fakeAudio = {
+                play: () => {
+                    speechSynthesis.speak(utterance);
+                },
+                pause: () => speechSynthesis.cancel(),
+                onended: null
+            };
+            
+            utterance.onend = () => {
+                if(fakeAudio.onended) fakeAudio.onended();
+            };
+            
+            resolve(fakeAudio);
+        });
+    } else {
+        const key=cfg.voiceId+'-'+text+'-'+cfg.speed+'-'+cfg.stability+'-'+cfg.similarity;
+        if(cache[key])return cache[key];
+        const r=await fetch(API_ELEVENLABS+'/text-to-speech/'+cfg.voiceId,{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({text:text,model_id:'eleven_multilingual_v2',voice_settings:{stability:cfg.stability,similarity_boost:cfg.similarity,speed:cfg.speed}})
+        });
+        if(!r.ok)throw new Error('Error generando audio');
+        const blob=await r.blob();
+        cache[key]=URL.createObjectURL(blob);
+        return cache[key];
+    }
 }
 
 async function preGenerarTodo(){
+    if(!cfg.useIA) return;
+    
     var allPhrases=[];
     for(var v=0;v<videos.length;v++){
         for(var p=0;p<videos[v].phrases.length;p++){
@@ -412,7 +572,14 @@ async function preGenerarTodo(){
     }
 }
 
-function stopAudio(){if(audio){audio.pause();audio=null;}if(timeout){clearTimeout(timeout);timeout=null;}}
+function stopAudio(){
+    if(audio){
+        if(audio.pause) audio.pause();
+        audio=null;
+    }
+    if(!cfg.useIA) speechSynthesis.cancel();
+    if(timeout){clearTimeout(timeout);timeout=null;}
+}
 
 function setStatus(s){
     $('statusDot').className='status-dot '+s;
@@ -426,6 +593,16 @@ function updateUI(){
     $('progressFill').style.width=((idx+1)/phrases.length*100)+'%';
     var maxRep=phraseReps[idx]||1;
     $('repInd').textContent=maxRep>1?'Rep '+(rep+1)+'/'+maxRep:'';
+    
+    const nextVideoIdx = videoIdx + 1;
+    if(nextVideoIdx < guionesMetadata.length){
+        const nextGuion = guionesMetadata[nextVideoIdx];
+        const numero = String(nextGuion.id).padStart(3, '0');
+        $('nextGuionText').textContent = `${numero}. ${nextGuion.titulo}`;
+    }else{
+        $('nextGuionText').textContent = 'Último guión';
+    }
+    
     var dots='';
     for(var i=0;i<videos.length;i++){
         if(i<videoIdx)dots+='<div class="video-dot done"></div>';
@@ -451,35 +628,67 @@ async function playPhrase(){
     if(!playing||paused||idx>=phrases.length)return;
     updateUI();setStatus('speaking');
     try{
-        const url=await genSpeech(phrases[idx]);
-        audio=new Audio(url);
-        const start=Date.now();
-        audio.onended=function(){
-            lastDur=(Date.now()-start)/1000;
-            rep++;
-            var maxRep=phraseReps[idx]||1;
-            if(rep<maxRep){
-                updateUI();
-                timeout=setTimeout(playPhrase,400);
-                return;
-            }
-            rep=0;
-            if(idx<phrases.length-1){
-                setStatus('waiting');
-                timeout=setTimeout(function(){idx++;playPhrase();},lastDur*cfg.mult*1000);
-            }else{
-                playing=false;
-                if(videoIdx<videos.length-1){
-                    showNextVideoButton();
-                }else{
-                    setStatus('');
-                    $('ppText').textContent='Reiniciar';
-                    $('btnPlayPause').querySelector('.icon').textContent='play_arrow';
-                    playBeep();
+        if(!cfg.useIA){
+            const fakeAudio = await genSpeech(phrases[idx]);
+            audio = fakeAudio;
+            const start=Date.now();
+            fakeAudio.onended=function(){
+                lastDur=(Date.now()-start)/1000;
+                rep++;
+                var maxRep=phraseReps[idx]||1;
+                if(rep<maxRep){
+                    updateUI();
+                    timeout=setTimeout(playPhrase,400);
+                    return;
                 }
-            }
-        };
-        audio.play();
+                rep=0;
+                if(idx<phrases.length-1){
+                    setStatus('waiting');
+                    timeout=setTimeout(function(){idx++;playPhrase();},lastDur*cfg.mult*1000);
+                }else{
+                    playing=false;
+                    if(videoIdx<videos.length-1){
+                        showNextVideoButton();
+                    }else{
+                        setStatus('');
+                        $('ppText').textContent='Reiniciar';
+                        $('btnPlayPause').querySelector('.icon').textContent='play_arrow';
+                        playBeep();
+                    }
+                }
+            };
+            fakeAudio.play();
+        } else {
+            const url=await genSpeech(phrases[idx]);
+            audio=new Audio(url);
+            const start=Date.now();
+            audio.onended=function(){
+                lastDur=(Date.now()-start)/1000;
+                rep++;
+                var maxRep=phraseReps[idx]||1;
+                if(rep<maxRep){
+                    updateUI();
+                    timeout=setTimeout(playPhrase,400);
+                    return;
+                }
+                rep=0;
+                if(idx<phrases.length-1){
+                    setStatus('waiting');
+                    timeout=setTimeout(function(){idx++;playPhrase();},lastDur*cfg.mult*1000);
+                }else{
+                    playing=false;
+                    if(videoIdx<videos.length-1){
+                        showNextVideoButton();
+                    }else{
+                        setStatus('');
+                        $('ppText').textContent='Reiniciar';
+                        $('btnPlayPause').querySelector('.icon').textContent='play_arrow';
+                        playBeep();
+                    }
+                }
+            };
+            audio.play();
+        }
     }catch(e){showErr(e.message);playing=false;}
 }
 
@@ -496,35 +705,55 @@ function startVideo(vIdx){
     playPhrase();
 }
 
-$('script').addEventListener('input',function(){guionProcesado=false;checkButtons();});
-$('voiceSelect').addEventListener('change',function(e){var v=voices.find(x=>x.voice_id===e.target.value);if(v)selectVoice(v.voice_id,v.name);});
 $('speed').addEventListener('input',function(e){cfg.speed=parseFloat(e.target.value);$('speedVal').textContent=cfg.speed+'x';});
 $('stability').addEventListener('input',function(e){cfg.stability=parseFloat(e.target.value);$('stabilityVal').textContent=cfg.stability;});
-$('similarity').addEventListener('input',function(e){cfg.similarity=parseFloat(e.target.value);$('similarityVal').textContent=cfg.similarity;});
 $('mult').addEventListener('input',function(e){cfg.mult=parseFloat(e.target.value);$('multVal').textContent=cfg.mult+'x';});
 
-$('btnIA').addEventListener('click',procesarConIA);
-
-$('btnPreview').addEventListener('click',async function(){
-    $('btnPreview').disabled=true;$('btnPreview').innerHTML='<span class="material-symbols-outlined text-primary animate-spin">progress_activity</span> Generando...';
-    try{var url=await genSpeech('Hola, esta es una prueba de voz.');var a=new Audio(url);a.onended=function(){$('btnPreview').disabled=false;$('btnPreview').innerHTML='<span class="material-symbols-outlined text-primary">graphic_eq</span> Escuchar voz';};a.play();}
-    catch(e){showErr(e.message);$('btnPreview').disabled=false;$('btnPreview').innerHTML='<span class="material-symbols-outlined text-primary">graphic_eq</span> Escuchar voz';}
-});
-
 $('btnStart').addEventListener('click',async function(){
-    videos=parseGuionProcesado($('script').value);
-    if(!videos.length||!videos[0].phrases.length){showErr('No hay guiones');return;}
-    cache={};hideErr();
+    if(selectedGuiones.length === 0){
+        showErr('Selecciona al menos un guion');
+        return;
+    }
+    
+    selectedGuiones.forEach(id => markAsUsed(id));
+    guionesMetadata = selectedGuiones.map(id => guionesData.find(x => x.id === id)).filter(Boolean);
+    
+    const guionesTextos = selectedGuiones.map(id => {
+        const g = guionesData.find(x => x.id === id);
+        return g ? replaceVariables(g.texto, g.categoria) : '';
+    }).filter(Boolean);
+    
+    const guionCombinado = guionesTextos.join('\n\n---\n\n');
+    
+    showLoading('✨ Procesando con IA','La IA está optimizando tus guiones...',30);
     
     try{
+        const r=await fetch(API_CLAUDE,{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({
+                guion: guionCombinado,
+                inmobiliaria: $('inmobiliaria').value.trim(),
+                ciudad: $('ciudad').value.trim()
+            })
+        });
+        
+        if(!r.ok)throw new Error('Error en la API');
+        const d=await r.json();
+        if(d.error)throw new Error(d.error);
+        
+        videos=parseGuionProcesado(d.guion);
+        if(!videos.length||!videos[0].phrases.length){throw new Error('No hay guiones procesados');}
+        
+        cache={};hideErr();
         await preGenerarTodo();
         hideLoading();
-        $('setup').classList.remove('active');
-        $('player').classList.add('active');
+        
+        $('player').style.display='flex';
         startVideo(0);
     }catch(e){
         hideLoading();
-        showErr('Error generando audio: '+e.message);
+        showErr('Error: '+e.message);
     }
 });
 
@@ -541,9 +770,26 @@ $('btnPlayPause').addEventListener('click',function(){
 $('btnPrev').addEventListener('click',function(){stopAudio();idx=Math.max(0,idx-1);rep=0;updateUI();if(playing&&!paused)playPhrase();});
 $('btnNext').addEventListener('click',function(){stopAudio();idx=Math.min(phrases.length-1,idx+1);rep=0;updateUI();if(playing&&!paused)playPhrase();});
 $('btnRepeat').addEventListener('click',function(){stopAudio();rep=0;if(playing&&!paused)playPhrase();});
-$('btnBack').addEventListener('click',function(){stopAudio();playing=false;paused=false;$('player').classList.remove('active');$('setup').classList.add('active');hideNextVideoButton();});
+
+document.addEventListener('keydown', function(e){
+    if(e.code === 'Space' && playing && !paused){
+        e.preventDefault();
+        stopAudio();
+        rep=0;
+        playPhrase();
+    }
+});
+
+$('btnBack').addEventListener('click',function(){
+    stopAudio();
+    playing=false;
+    paused=false;
+    $('player').style.display='none';
+    hideNextVideoButton();
+});
 
 loadVoices();
+loadGuionesJSON();
 </script>
 </body>
 </html>
