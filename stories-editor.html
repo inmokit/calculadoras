@@ -42,6 +42,154 @@
   <script type="text/babel">
     const { useState, useRef, useEffect } = React;
 
+    // CALENDARIO DE GUIONES (16 días de contenido)
+    const GUIONES_CALENDARIO = {
+      // LUNES - Calculadoras
+      'lun-1': {
+        titulo: 'Plusvalía Municipal',
+        textos: [
+          'Cuando vendes tu piso, tienes 30 días para pagar la plusvalía municipal.',
+          'Hay 2 métodos para calcular cuánto te toca pagar. El método objetivo, y el método REAL.',
+          'Con esta calculadora sabrás exactamente cuál es el método que te sale más barato'
+        ],
+        fotos: ['👤 Agente serio', '📄 Documentos', '📱 Calculadora', '💬 CTA "PLUSVALÍA"']
+      },
+      'lun-2': {
+        titulo: 'Impuesto de Sucesiones',
+        textos: [
+          'Si quieres vender una vivienda HEREDADA, tienes 6 meses para liquidar el impuesto',
+          'Si tardas más de 12 meses el recargo sube',
+          'Esta calculadora te dice exactamente cuánto te tocará pagar'
+        ],
+        fotos: ['👤 Agente', '📄 Documentos mesa', '📱 Calculadora', '💬 CTA "HERENCIA"']
+      },
+      'lun-3': {
+        titulo: 'IRPF (Ganancia Patrimonial)',
+        textos: [
+          'Vendes tu piso por 300.000€ y al año siguiente Hacienda te reclama 15.000€',
+          'La ganancia patrimonial por vender una vivienda suele pillar de sorpresa',
+          'Con esta calculadora sabrás exactamente cuánto debes apartar'
+        ],
+        fotos: ['👤 Agente serio', '😟 Preocupación', '📱 Calculadora', '💬 CTA "RENTA"']
+      },
+      
+      // MIÉRCOLES - Tutoriales
+      'mie-1': {
+        titulo: 'Nota Simple',
+        textos: [
+          'Antes de vender necesitas saber si tiene cargas o embargos',
+          'Si aparece una carga cuando ya tienes comprador se echa atrás',
+          'He grabado un vídeo para enseñarte cómo sacarla por solo 9 euros'
+        ],
+        fotos: ['👤 Agente', '😐 Gesto serio', '📱 Pantalla Registro', '💬 CTA "NOTA"']
+      },
+      'mie-2': {
+        titulo: 'Precios CEE',
+        textos: [
+          'Si NO tienes el certificado energético no puedes publicar tu vivienda',
+          'Si firmas arras sin tenerlo el comprador puede echarse atrás sin penalización',
+          'En este listado oficial puedes buscar técnicos y comparar precios'
+        ],
+        fotos: ['👤 Agente', '😐 Serio', '📱 Web oficial', '💬 CTA "PRECIOS"']
+      },
+      'mie-3': {
+        titulo: 'Notarios',
+        textos: [
+          'A veces tu piso vale más de lo que crees',
+          'Los notarios han sacado una web donde puedes ver los precios escriturados reales',
+          'Son datos oficiales, no estimaciones'
+        ],
+        fotos: ['👤 Agente', '📱 Web notarios', '📊 Datos', '💬 CTA "NOTARIOS"']
+      },
+      'mie-4': {
+        titulo: 'Catastro',
+        textos: [
+          'Si hay discrepancias entre los metros de escritura y Catastro el notario paraliza la venta',
+          'En la Sede del Catastro puedes sacar todo online y gratis',
+          'He grabado un vídeo rápido para enseñarte cómo'
+        ],
+        fotos: ['👤 Agente', '📱 Sede Catastro', '🎥 Captura vídeo', '💬 CTA "CATASTRO"']
+      },
+      
+      // JUEVES - Lead magnets personalizados
+      'jue-1': {
+        titulo: 'Testigos de Ventas',
+        textos: [
+          'Si te fías de Idealista te arriesgas a vender por debajo del precio real',
+          'Los testigos se sacan del registro y te salen las ventas oficiales',
+          'No estimaciones, precios oficiales escriturados'
+        ],
+        fotos: ['👤 Agente', '👥 Reunión', '📄 Testigos', '💬 CTA "VENTAS"']
+      },
+      'jue-2': {
+        titulo: 'Asesoría Impuestos',
+        textos: [
+          'No tenía ni idea de todo lo que me podía ahorrar al vender el piso',
+          'Entre bonificaciones, exenciones, deducciones... incluso evitar multas',
+          'Asesorías por videollamada sin que tengas que desplazarte'
+        ],
+        fotos: ['👤 Agente', '💻 Zoom', '📱 Videollamada', '💬 CTA "IMPUESTOS"']
+      },
+      'jue-3': {
+        titulo: 'Ayuda Plusvalía',
+        textos: [
+          'La plusvalía municipal es el PRIMER hachazo de hacienda',
+          'Cada ayuntamiento tiene sus propios coeficientes',
+          'Te ayudo a calcularla y te digo exactamente cuál te sale más barato'
+        ],
+        fotos: ['👤 Agente', '📄 Papeles', '🧮 Cálculo', '💬 CTA "AYUDA"']
+      },
+      
+      // DOMINGO - Presenciales
+      'dom-1': {
+        titulo: 'CEE Incluido',
+        textos: [
+          'Para vender necesitas SÍ o SÍ el CEE en vigor',
+          'Nosotros incluimos el CEE SIN coste adicional',
+          'Voy a tu casa, hago mediciones y te entrego el certificado oficial en 48h'
+        ],
+        fotos: ['👤 Agente', '📋 Tablet', '📐 Mediciones', '💬 CTA "CEE"']
+      },
+      'dom-2': {
+        titulo: 'Tasación a Domicilio',
+        textos: [
+          'Carlos iba a poner su piso según Idealista y habría perdido 45.000€',
+          'Las valoraciones online NO tienen en cuenta el estado real',
+          'Solo con tasación a domicilio puedes poner el precio exacto'
+        ],
+        fotos: ['👤 Agente', '📐 Valoración', '📋 Tablet', '💬 CTA "TASACIÓN"']
+      },
+      'dom-3': {
+        titulo: 'CEE Obligatorio',
+        textos: [
+          'Si vendes sin CEE en vigor te arriesgas a perder la venta',
+          'Un notario se negó a firmar sin el CEE y el comprador se echó atrás',
+          'El CEE es el primer paso que tienes que dar'
+        ],
+        fotos: ['👤 Agente', '😐 Serio', '📐 Mediciones', '💬 CTA "CEE"']
+      },
+      'dom-4': {
+        titulo: 'Tasación Realista',
+        textos: [
+          'Si te guías por tus emociones o lo que necesitas para la hipoteca te arriesgas',
+          'Carlos no hizo caso a la valoración: 27 visitas, 3 ofertas, ninguna seria',
+          'Valoración a domicilio para vender bien y evitar quebraderos de cabeza'
+        ],
+        fotos: ['👤 Agente', '📐 Valoración', '😐 Serio', '💬 CTA "TASACIÓN"']
+      }
+    };
+
+    // Mapeo de días de la semana a claves de calendario
+    const DAY_TO_CALENDAR_KEY = {
+      'Lun': ['lun-1', 'lun-2', 'lun-3', 'lun-1'], // Cicla cada 3 semanas
+      'Mar': [null, null, null, null],
+      'Mie': ['mie-1', 'mie-2', 'mie-3', 'mie-4'],
+      'Jue': ['jue-1', 'jue-2', 'jue-3', 'jue-1'],
+      'Vie': [null, null, null, null],
+      'Sab': [null, null, null, null],
+      'Dom': ['dom-1', 'dom-2', 'dom-3', 'dom-4']
+    };
+
     function StoriesEditor() {
       const DAYS = ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'];
       const FONTS = [
@@ -54,6 +202,20 @@
       const TEXT_COLORS = ['#FFFFFF', '#000000', '#FF3B30', '#FFCC00', '#34C759', '#007AFF'];
       const MAX_CHARS_WIDE = 40;
       const MAX_CHARS_NARROW = 25;
+
+      // Leer blogId de la URL
+      const [blogId, setBlogId] = useState(null);
+      const [weekNumber, setWeekNumber] = useState(0); // 0-3 para ciclar las semanas
+
+      useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const cuenta = params.get('cuenta');
+        if (cuenta) {
+          setBlogId(cuenta);
+        } else {
+          alert('Error: No se ha especificado cuenta. La URL debe ser: ?cuenta=XXXXX');
+        }
+      }, []);
 
       const [stories, setStories] = useState(DAYS.map(day => ({ day, slots: [null, null, null, null], texts: [[], [], [], []], drawings: [[], [], [], []], overlays: [[], [], [], []] })));
       const [activeDayIdx, setActiveDayIdx] = useState(0);
@@ -68,8 +230,10 @@
       const [brushSize, setBrushSize] = useState(5);
       const [isDrawing, setIsDrawing] = useState(false);
       const [currentPath, setCurrentPath] = useState([]);
-      const [guionText, setGuionText] = useState('');
       const [draggedThumb, setDraggedThumb] = useState(null);
+      const [showPublishModal, setShowPublishModal] = useState(false);
+      const [publishHour, setPublishHour] = useState('09:00');
+      const [isPublishing, setIsPublishing] = useState(false);
 
       const fileInputRef = useRef(null);
       const overlayInputRef = useRef(null);
@@ -80,6 +244,17 @@
       const currentTexts = currentStory.texts[activeSlotIdx];
       const currentDrawings = currentStory.drawings[activeSlotIdx];
       const currentOverlays = currentStory.overlays[activeSlotIdx];
+
+      // Obtener guión del día actual
+      const getCurrentGuion = () => {
+        const dayName = DAYS[activeDayIdx];
+        const calendarKeys = DAY_TO_CALENDAR_KEY[dayName];
+        if (!calendarKeys) return null;
+        const key = calendarKeys[weekNumber % calendarKeys.length];
+        return key ? GUIONES_CALENDARIO[key] : null;
+      };
+
+      const currentGuion = getCurrentGuion();
 
       useEffect(() => {
         const handleKeyDown = (e) => {
@@ -212,34 +387,31 @@
       };
 
       const addTextsFromGuion = () => {
-        const lines = guionText.split('\n').filter(l => l.trim());
+        if (!currentGuion) {
+          alert('No hay guión disponible para este día');
+          return;
+        }
+
+        const lines = currentGuion.textos;
         if (lines.length === 0) return;
         
         const newTexts = [];
-        const newDrawings = [];
         const font = FONTS[0];
         
-        // Paleta de colores con buen contraste
         const colorSchemes = [
-          { bg: '#FFCC00', color: '#000000' }, // Amarillo/Negro
-          { bg: '#FFFFFF', color: '#000000' }, // Blanco/Negro
-          { bg: '#FF3B30', color: '#FFFFFF' }, // Rojo/Blanco
-          { bg: '#000000', color: '#FFFFFF' }, // Negro/Blanco
-          { bg: '#007AFF', color: '#FFFFFF' }, // Azul/Blanco
-          { bg: '#34C759', color: '#000000' }, // Verde/Negro
+          { bg: '#FFCC00', color: '#000000' },
+          { bg: '#FFFFFF', color: '#000000' },
+          { bg: '#FF3B30', color: '#FFFFFF' },
         ];
         
-        // Posiciones Y distribuidas (arriba, medio, abajo)
         const positions = [
-          { y: 80, fontSize: 28 },   // Arriba - grande
-          { y: 280, fontSize: 20 },  // Medio-alto - pequeño
-          { y: 480, fontSize: 32 },  // Abajo - muy grande
+          { y: 80, fontSize: 28 },
+          { y: 280, fontSize: 20 },
+          { y: 480, fontSize: 32 },
         ];
         
-        // Posiciones X variadas
         const xPositions = [120, 180, 140];
         
-        // Crear textos
         const numTexts = Math.min(lines.length, 3);
         for (let i = 0; i < numTexts; i++) {
           const scheme = colorSchemes[i % colorSchemes.length];
@@ -247,7 +419,7 @@
           
           newTexts.push({ 
             id: Date.now().toString() + i, 
-            content: lines[i].trim(), 
+            content: lines[i], 
             x: xPositions[i % xPositions.length], 
             y: pos.y, 
             fontSize: pos.fontSize, 
@@ -259,51 +431,12 @@
             fontWeight: font.fontWeight,
             rotation: 0, 
             align: 'left',
-            maxChars: MAX_CHARS_NARROW // Ancho corto por defecto
+            maxChars: MAX_CHARS_NARROW
           });
         }
         
-        // Crear flechas conectando los textos (si hay más de 1)
-        if (numTexts >= 2) {
-          // Flecha del texto 1 al texto 2
-          const arrow1 = {
-            id: Date.now().toString() + '_arrow1',
-            path: [
-              { x: xPositions[0] + 40, y: positions[0].y + 60 },
-              { x: xPositions[0] + 50, y: positions[0].y + 90 },
-              { x: xPositions[1] - 20, y: positions[1].y - 40 },
-              { x: xPositions[1], y: positions[1].y - 20 }
-            ],
-            color: colorSchemes[0].bg,
-            size: 4,
-            style: 'normal',
-            tip: 'arrow'
-          };
-          newDrawings.push(arrow1);
-        }
-        
-        if (numTexts >= 3) {
-          // Flecha del texto 2 al texto 3
-          const arrow2 = {
-            id: Date.now().toString() + '_arrow2',
-            path: [
-              { x: xPositions[1] + 60, y: positions[1].y + 40 },
-              { x: xPositions[1] + 80, y: positions[1].y + 100 },
-              { x: xPositions[2] + 40, y: positions[2].y - 60 },
-              { x: xPositions[2] + 20, y: positions[2].y - 30 }
-            ],
-            color: colorSchemes[1].bg === '#FFFFFF' ? '#FF69B4' : colorSchemes[1].bg,
-            size: 4,
-            style: 'normal',
-            tip: 'arrow'
-          };
-          newDrawings.push(arrow2);
-        }
-        
         updateStory(activeDayIdx, 'texts', activeSlotIdx, [...currentTexts, ...newTexts]);
-        updateStory(activeDayIdx, 'drawings', activeSlotIdx, [...currentDrawings, ...newDrawings]);
         setSelectedElements(newTexts.map(t => ({ type: 'text', id: t.id })));
-        setGuionText('');
       };
 
       const updateText = (id, updates) => {
@@ -516,10 +649,8 @@
         return lines;
       };
 
-      // Instagram-style text with connected background block using SVG path
       const InstagramTextElement = ({ t, isSelected, onMouseDown }) => {
         const fs = t.fontSize;
-        // Medidas exactas Instagram
         const padH = fs * 0.39;
         const padV = fs * 0.32;
         const radius = fs * 0.29;
@@ -563,7 +694,6 @@
           return `rgba(${r},${g},${b},${bgOpacity})`;
         };
 
-        // Build SVG path for stepped background based on alignment
         const buildSteppedPath = () => {
           if (lineWidths.length === 0) return '';
           
@@ -573,10 +703,8 @@
           const totalH = n * lineH + padV * 2;
           const r = radius;
           
-          // For left alignment: simple path with steps on right
           if (align === 'left') {
             let rights = [...boxWidths];
-            // Preprocess
             for (let i = 0; i < n - 1; i++) {
               const diff = Math.abs(rights[i] - rights[i + 1]);
               if (diff < 20 && diff > 0) {
@@ -627,10 +755,8 @@
             return d;
           }
           
-          // For right alignment: steps on left, straight on right
           if (align === 'right') {
             let lefts = boxWidths.map(w => maxW - w);
-            // Preprocess
             for (let i = 0; i < n - 1; i++) {
               const diff = Math.abs(lefts[i] - lefts[i + 1]);
               if (diff < 20 && diff > 0) {
@@ -648,7 +774,6 @@
             d += ` L ${lefts[n-1] + r} ${totalH}`;
             d += ` Q ${lefts[n-1]} ${totalH}, ${lefts[n-1]} ${totalH - r}`;
             
-            // Go up on left side with steps
             for (let i = n - 1; i >= 0; i--) {
               const thisL = lefts[i];
               const lineTop = padV + i * lineH;
@@ -660,14 +785,12 @@
                 if (Math.abs(diff) < 2) {
                   d += ` L ${thisL} ${lineTop}`;
                 } else if (diff > 0) {
-                  // Previous line starts more to the right (narrower) - step inward
                   const stepY = lineTop - padV;
                   d += ` L ${thisL} ${stepY + r}`;
                   d += ` Q ${thisL} ${stepY}, ${thisL + r} ${stepY}`;
                   d += ` L ${prevL - r} ${stepY}`;
                   d += ` Q ${prevL} ${stepY}, ${prevL} ${stepY - r}`;
                 } else {
-                  // Previous line starts more to the left (wider) - step outward
                   const stepY = lineTop + padV;
                   d += ` L ${thisL} ${stepY + r}`;
                   d += ` L ${thisL} ${stepY}`;
@@ -684,7 +807,6 @@
             return d;
           }
           
-          // For center alignment: use max width rectangle (simpler, more stable)
           let d = `M ${r} 0`;
           d += ` L ${maxW - r} 0`;
           d += ` Q ${maxW} 0, ${maxW} ${r}`;
@@ -854,14 +976,12 @@
           ctx.shadowBlur = 0;
         });
 
-        // Export texts with Instagram style (stepped background)
         texts.forEach(t => { 
           ctx.save(); 
           ctx.translate(t.x * scaleX, t.y * scaleY); 
           if (t.rotation) ctx.rotate(t.rotation * Math.PI / 180);
           
           const fs = t.fontSize * scaleX;
-          // Medidas exactas Instagram
           const padH = fs * 0.39;
           const padV = fs * 0.32;
           const radius = fs * 0.29;
@@ -872,10 +992,8 @@
           
           const lines = splitTextIntoLines(t.content, t.maxChars || MAX_CHARS_WIDE);
           
-          // Measure each line width
           const lineWidths = lines.map(line => ctx.measureText(line).width);
           
-          // Calculate rights with preprocessing for small differences
           let rights = lineWidths.map(w => padH + w + padH);
           for (let i = 0; i < rights.length - 1; i++) {
             const diff = Math.abs(rights[i] - rights[i + 1]);
@@ -891,7 +1009,6 @@
           const r = radius;
           const n = lines.length;
           
-          // Draw stepped background
           const bgOpacity = t.bgOpacity ?? 1;
           if (bgOpacity > 0) {
             const bgColor = t.bgColor || '#000000';
@@ -905,7 +1022,6 @@
               ctx.fillStyle = `rgba(${rr},${gg},${bb},${bgOpacity})`;
             }
             
-            // Offset to center
             const offsetX = -maxRight / 2;
             const offsetY = -totalH / 2;
             
@@ -950,7 +1066,6 @@
             ctx.fill();
           }
           
-          // Draw text
           ctx.fillStyle = t.color;
           ctx.textAlign = 'left';
           let textY = -totalH / 2 + padV;
@@ -963,7 +1078,11 @@
           ctx.restore();
         });
 
-        return { dataUrl: canvas.toDataURL('image/png'), name: `${DAYS[dayIdx]}-story-${slotIdx + 1}.png` };
+        return { 
+          dataUrl: canvas.toDataURL('image/png'), 
+          name: `${DAYS[dayIdx]}-story-${slotIdx + 1}.png`,
+          blob: await new Promise(resolve => canvas.toBlob(resolve, 'image/png'))
+        };
       };
 
       const exportDay = async () => {
@@ -995,6 +1114,143 @@
         if (count === 0) return alert('No hay stories');
         const blob = await zip.generateAsync({ type: 'blob' });
         const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'todas-las-stories.zip'; a.click();
+      };
+
+      const handlePublish = async () => {
+        if (!blogId) {
+          alert('Error: No se ha especificado cuenta');
+          return;
+        }
+
+        // Recopilar todos los días con contenido
+        const daysWithContent = [];
+        for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
+          const dayStories = [];
+          for (let slotIdx = 0; slotIdx < 4; slotIdx++) {
+            if (stories[dayIdx].slots[slotIdx]) {
+              const exported = await exportSingleStory(dayIdx, slotIdx);
+              if (exported) {
+                dayStories.push(exported);
+              }
+            }
+          }
+          if (dayStories.length > 0) {
+            daysWithContent.push({
+              dayName: DAYS[dayIdx],
+              dayIdx,
+              stories: dayStories
+            });
+          }
+        }
+
+        if (daysWithContent.length === 0) {
+          alert('No hay stories para publicar');
+          return;
+        }
+
+        setIsPublishing(true);
+
+        try {
+          // Calcular fechas de publicación
+          const today = new Date();
+          const currentDayOfWeek = today.getDay(); // 0 = Domingo, 1 = Lunes, etc.
+          
+          const publications = [];
+          
+          daysWithContent.forEach(({ dayName, dayIdx, stories: dayStories }) => {
+            // Mapear índice de día a día de la semana (0-6)
+            // ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom']
+            //    1      2      3      4      5      6      0
+            const targetDayOfWeek = dayIdx === 6 ? 0 : dayIdx + 1;
+            
+            // Calcular días hasta ese día
+            let daysUntil = targetDayOfWeek - currentDayOfWeek;
+            if (daysUntil < 0) daysUntil += 7; // Siguiente semana
+            if (daysUntil === 0) daysUntil = 7; // Hoy = próxima semana
+            
+            const publicationDate = new Date(today);
+            publicationDate.setDate(today.getDate() + daysUntil);
+            
+            // Programar cada story del día con 1 minuto de diferencia
+            dayStories.forEach((story, storyIdx) => {
+              const [hours, minutes] = publishHour.split(':').map(Number);
+              const storyDate = new Date(publicationDate);
+              storyDate.setHours(hours, minutes + storyIdx, 0, 0);
+              
+              publications.push({
+                image: story.blob,
+                scheduledTime: storyDate.toISOString(),
+                dayName,
+                storyNumber: storyIdx + 1
+              });
+            });
+          });
+
+          // Llamar al Worker de Cloudflare
+          const WORKER_URL = 'https://metricool-stories.ajnietoc.workers.dev/publish';
+          
+          // Enviar stories una por una (Metricool API lo requiere)
+          for (const pub of publications) {
+            // Convert Blob to base64 data URI
+            const base64Image = await new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result);
+              reader.readAsDataURL(pub.image);
+            });
+            
+            const response = await fetch(WORKER_URL, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                blogId: blogId,
+                imageUrl: base64Image,
+                text: `Story ${pub.dayName} ${pub.storyNumber}`,
+                scheduledTime: pub.scheduledTime
+              })
+            });
+
+            if (!response.ok) {
+              throw new Error(`Error publicando ${pub.dayName} story ${pub.storyNumber}`);
+            }
+          }
+
+          alert(`✅ ${publications.length} stories programadas correctamente en Instagram`);
+          setShowPublishModal(false);
+
+        } catch (error) {
+          console.error('Error publicando:', error);
+          alert('❌ Error al publicar: ' + error.message);
+        } finally {
+          setIsPublishing(false);
+        }
+      };
+
+      const getPublicationPreview = () => {
+        const daysWithContent = [];
+        for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
+          const count = stories[dayIdx].slots.filter(s => s !== null).length;
+          if (count > 0) {
+            const dayName = DAYS[dayIdx];
+            const today = new Date();
+            const currentDayOfWeek = today.getDay();
+            const targetDayOfWeek = dayIdx === 6 ? 0 : dayIdx + 1;
+            let daysUntil = targetDayOfWeek - currentDayOfWeek;
+            if (daysUntil < 0) daysUntil += 7;
+            if (daysUntil === 0) daysUntil = 7;
+            const publicationDate = new Date(today);
+            publicationDate.setDate(today.getDate() + daysUntil);
+            const dateStr = publicationDate.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+            
+            const [hours, minutes] = publishHour.split(':').map(Number);
+            const endMinutes = minutes + count - 1;
+            const timeRange = `${publishHour}-${String(hours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}`;
+            
+            daysWithContent.push({ dayName, count, dateStr, timeRange });
+          }
+        }
+        return daysWithContent;
       };
 
       const firstSelectedText = selectedElements.find(s => s.type === 'text');
@@ -1043,6 +1299,9 @@
                 ))}
               </div>
               <div className="flex items-center space-x-2">
+                <button onClick={() => setShowPublishModal(true)} className="px-4 py-2 text-sm font-medium bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-md shadow-md hover:opacity-90 transition-opacity">
+                  📱 Publicar en Instagram
+                </button>
                 <button onClick={exportDay} className="px-4 py-2 text-sm font-medium bg-primary text-white rounded-md shadow-md hover:opacity-90 transition-opacity">Exportar día</button>
                 <button onClick={exportAll} className="px-4 py-2 text-sm font-medium bg-gray-700 text-gray-300 rounded-md hover:bg-gray-600 transition-colors">Exportar todos</button>
               </div>
@@ -1053,22 +1312,46 @@
           <main className="flex-grow p-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
             {/* COLUMNA GUION */}
             <div className="bg-gray-900/50 p-6 rounded-lg flex flex-col">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-4">GUION STORY (BLOQUES DE TEXTO)</h2>
-              <div className="flex-grow relative">
-                <textarea 
-                  value={guionText} 
-                  onChange={e => setGuionText(e.target.value)} 
-                  placeholder="Pega tu guion aquí..."
-                  className="w-full h-full p-4 bg-indigo-900/20 border border-purple-500 rounded-lg resize-none text-gray-300 placeholder-gray-400 focus:ring-purple-500 focus:border-purple-500"
-                />
-              </div>
-              <button 
-                onClick={addTextsFromGuion} 
-                disabled={!guionText.trim()} 
-                className={`mt-4 w-full py-3 text-sm font-semibold rounded-lg transition-colors ${guionText.trim() ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:opacity-90' : 'bg-gray-700 text-gray-200 opacity-50'}`}
-              >
-                Generar textos
-              </button>
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-4">
+                {currentGuion ? `${DAYS[activeDayIdx]} - ${currentGuion.titulo}` : 'SIN CONTENIDO ESTE DÍA'}
+              </h2>
+              
+              {currentGuion ? (
+                <>
+                  <div className="flex-grow mb-4">
+                    <div className="bg-indigo-900/20 border border-purple-500 rounded-lg p-4 space-y-2">
+                      {currentGuion.textos.map((texto, idx) => (
+                        <p key={idx} className="text-gray-300 text-sm leading-relaxed">
+                          <span className="font-bold text-purple-400">Story {idx + 1}:</span> {texto}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <button 
+                    onClick={addTextsFromGuion} 
+                    className="w-full py-3 text-sm font-semibold rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:opacity-90 mb-4"
+                  >
+                    Generar textos
+                  </button>
+
+                  <div className="border-t border-gray-700 pt-4">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">Fotos sugeridas:</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {currentGuion.fotos.map((foto, idx) => (
+                        <div key={idx} className="bg-gray-800 rounded-lg p-3 text-center">
+                          <div className="text-2xl mb-1">{foto.split(' ')[0]}</div>
+                          <div className="text-xs text-gray-400">{foto.substring(foto.indexOf(' ') + 1)}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="flex-grow flex items-center justify-center">
+                  <p className="text-gray-500 text-center">Este día no tiene guión asignado.<br/>Sube tus fotos y crea el contenido manualmente.</p>
+                </div>
+              )}
             </div>
 
             {/* COLUMNA TOOLS */}
@@ -1125,7 +1408,7 @@
                 </div>
               </div>
 
-              {/* Botones Dibujar y Captura - movidos aquí */}
+              {/* Botones Dibujar y Captura */}
               <div className="mt-auto pt-4 border-t border-gray-700">
                 <div className="grid grid-cols-2 gap-2">
                   <button onClick={() => setTool(tool === 'draw' ? 'select' : 'draw')} className={`py-3 text-sm font-medium rounded-lg transition-colors ${tool === 'draw' ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-lg' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}`}>
@@ -1138,7 +1421,7 @@
               </div>
             </div>
 
-            {/* COLUMNA CANVAS - ahora ocupa toda la altura */}
+            {/* COLUMNA CANVAS */}
             <div className="bg-gray-900/50 p-4 rounded-lg flex items-center justify-center">
               <div 
                 ref={canvasRef} 
@@ -1184,6 +1467,63 @@
 
           <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleImageUpload} style={{ display: 'none' }} />
           <input ref={overlayInputRef} type="file" accept="image/*" onChange={handleOverlayUpload} style={{ display: 'none' }} />
+
+          {/* MODAL DE PUBLICACIÓN */}
+          {showPublishModal && (
+            <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={() => !isPublishing && setShowPublishModal(false)}>
+              <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4" onClick={e => e.stopPropagation()}>
+                <h2 className="text-2xl font-bold text-white mb-4">📱 Publicar en Instagram</h2>
+                
+                {getPublicationPreview().length === 0 ? (
+                  <p className="text-gray-400 mb-6">No hay stories para publicar</p>
+                ) : (
+                  <>
+                    <div className="bg-gray-900 rounded-lg p-4 mb-4">
+                      <p className="text-sm text-gray-400 mb-2">Días con contenido:</p>
+                      {getPublicationPreview().map(({ dayName, count, dateStr, timeRange }) => (
+                        <div key={dayName} className="flex justify-between items-center py-2 border-b border-gray-700 last:border-0">
+                          <span className="text-white font-medium">{dayName} {dateStr}</span>
+                          <span className="text-gray-400 text-sm">{timeRange} ({count})</span>
+                        </div>
+                      ))}
+                      <p className="text-xs text-gray-500 mt-3">
+                        Total: {getPublicationPreview().reduce((sum, d) => sum + d.count, 0)} stories
+                      </p>
+                    </div>
+
+                    <div className="mb-6">
+                      <label className="block text-sm font-medium text-gray-400 mb-2">Hora de inicio diaria:</label>
+                      <input 
+                        type="time" 
+                        value={publishHour}
+                        onChange={e => setPublishHour(e.target.value)}
+                        disabled={isPublishing}
+                        className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-green-500"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Stories publicadas cada minuto a partir de esta hora</p>
+                    </div>
+
+                    <div className="flex space-x-3">
+                      <button 
+                        onClick={() => setShowPublishModal(false)}
+                        disabled={isPublishing}
+                        className="flex-1 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 disabled:opacity-50"
+                      >
+                        Cancelar
+                      </button>
+                      <button 
+                        onClick={handlePublish}
+                        disabled={isPublishing}
+                        className="flex-1 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:opacity-90 disabled:opacity-50"
+                      >
+                        {isPublishing ? 'Publicando...' : 'Programar'}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       );
     }
